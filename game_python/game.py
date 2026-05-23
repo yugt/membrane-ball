@@ -118,7 +118,21 @@ class Particle3D:
         pygame.draw.circle(surface, c, (px, py), r)
 
 def init_bricks():
-    return []
+    bricks = []
+    # Colorful premium neon brick colors
+    colors = [
+        (255, 20, 147),  # Fuchsia pink
+        (0, 191, 255),   # Cyan blue
+        (50, 205, 50),   # Lime green
+    ]
+    for row in range(3):
+        color = colors[row % len(colors)]
+        for col in range(4):
+            bx = -0.75 + col * 0.5
+            by = -0.5 + row * 0.5
+            bz = 4.0 + row * 0.5
+            bricks.append(Brick3D(bx, by, bz, color, size_x=0.4, size_y=0.4, size_z=0.15))
+    return bricks
 
 # Real-time Physical Energy Charting
 energy_history = []
@@ -235,14 +249,14 @@ def draw_arena(surface):
         pygame.draw.line(surface, COLOR_WALLS, proj[i], proj[i+4], 1)
 
 def main():
-    global score, lives, game_started, game_over, win
+    global score, lives, game_started, game_over, win, CAMERA_ROTATION, CAMERA_TILT
     
     membrane_size = 31
     membrane = MembranePhysics(size=membrane_size, tension=30.0) # tension T = 30.0
     membrane.c_damping = 0.0 # PERFECT CONSERVATIVE STATIC CHECK
     
-    ball = Ball3D(x=0.2, y=0.1, z=4.0, radius=0.5) # R = 0.5 concentric
-    ball.vel = np.array([1.5, 1.0, 0.0], dtype=float)
+    ball = Ball3D(x=0.2, y=0.1, z=2.0, radius=0.5) # R = 0.5 concentric (gentle start)
+    ball.vel = np.array([0.3, 0.2, -0.5], dtype=float)
     
     bricks = init_bricks()
     particles = []
@@ -261,25 +275,58 @@ def main():
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     running = False
+                    
+        # Real-time interactive camera rotation and tilt using arrow keys!
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT]:
+            CAMERA_ROTATION += 0.03
+        if keys[pygame.K_RIGHT]:
+            CAMERA_ROTATION -= 0.03
+        if keys[pygame.K_UP]:
+            CAMERA_TILT = min(np.pi / 2 - 0.05, CAMERA_TILT + 0.02)
+        if keys[pygame.K_DOWN]:
+            CAMERA_TILT = max(0.05, CAMERA_TILT - 0.02)
         
         if game_started:
-            px, py = 0.0, 0.0
+            # Let the paddle center (px, py) follow the mouse coordinates!
+            mx, my = pygame.mouse.get_pos()
+            px = (mx - WIDTH // 2) / SCALE
+            py = (my - HEIGHT // 2 - 120) / (SCALE * np.cos(CAMERA_TILT))
+            # Clamp paddle center to stay within reasonable play area
+            px = max(-0.8, min(0.8, px))
+            py = max(-0.8, min(0.8, py))
             p_vx, p_vy = 0.0, 0.0
             
-            # 3. Substepped Physics Engine for Ball Mechanics (Strict Energy/Momentum Conservation)
+            # 3. Substepped Physics Engine in buttery-smooth 30% slow-motion!
+            dt_physics = 0.3 / 60.0
             substeps = 20
-            sub_dt = dt / substeps
+            sub_dt = dt_physics / substeps
             for step in range(substeps):
                 # 1. Compute forces at current pos
-                r_b = np.sqrt(ball.pos[0]**2 + ball.pos[1]**2)
+                r_b2 = ball.pos[0]**2 + ball.pos[1]**2
+                r_b = np.sqrt(r_b2)
                 membrane.update_physics_state(ball.pos, ball.radius, px, py)
                 
-                force_z = 0.0
+                Ue_centered = membrane.get_elastic_energy(ball.radius)
+                Fz_centered = 0.0
                 if r_b <= 1.0 and membrane.r_c > 0.0:
                     S = np.sqrt(max(1e-15, ball.radius**2 - membrane.r_c**2))
-                    force_z = 2.0 * np.pi * membrane.tension * (membrane.r_c**2) / S
+                    Fz_centered = 2.0 * np.pi * membrane.tension * (membrane.r_c**2) / S
+                
+                # Apply the off-center coordinate scaling factor
+                factor = 1.0 / (1.0 - r_b2) if r_b < 1.0 else 1.0
+                
+                force_z = Fz_centered * factor
+                
+                force_x = 0.0
+                force_y = 0.0
+                if r_b < 1.0 and Ue_centered > 0.0:
+                    force_x = - (2.0 * ball.pos[0] / (1.0 - r_b2)**2) * Ue_centered
+                    force_y = - (2.0 * ball.pos[1] / (1.0 - r_b2)**2) * Ue_centered
                 
                 # 2. Update velocity (Symplectic Euler: velocity updated first)
+                ball.vel[0] += (force_x / ball.mass) * sub_dt
+                ball.vel[1] += (force_y / ball.mass) * sub_dt
                 ball.vel[2] += (-6.2 + force_z / ball.mass) * sub_dt
                 ball.vel = np.clip(ball.vel, -25.0, 25.0)
                 
@@ -289,15 +336,16 @@ def main():
                 # 4. Concentric Cylinder constraint (R_cyl = 1.45) with clamping
                 R_cyl = 1.45
                 ball_r = np.sqrt(ball.pos[0]**2 + ball.pos[1]**2)
-                if ball_r >= R_cyl:
+                if ball_r >= R_cyl - ball.radius:
                     nx = ball.pos[0] / ball_r
                     ny = ball.pos[1] / ball_r
                     v_dot_n = ball.vel[0] * nx + ball.vel[1] * ny
                     if v_dot_n > 0:
                         ball.vel[0] -= 2.0 * v_dot_n * nx
                         ball.vel[1] -= 2.0 * v_dot_n * ny
-                    ball.pos[0] = R_cyl * nx
-                    ball.pos[1] = R_cyl * ny
+                        # Project back to contact boundary ONLY when colliding!
+                        ball.pos[0] = (R_cyl - ball.radius) * nx
+                        ball.pos[1] = (R_cyl - ball.radius) * ny
                     
                 # 5. Rigid Circular Frame Ring (R_frame = 1.0) with clamping
                 R_frame = 1.0
@@ -322,15 +370,44 @@ def main():
                         ball.vel[0] -= 2.0 * v_dot_col * n_col_x
                         ball.vel[1] -= 2.0 * v_dot_col * n_col_y
                         ball.vel[2] -= 2.0 * v_dot_col * n_col_z
-                    # Project back to contact boundary
-                    ball.pos[0] = p_closest_x + ball.radius * n_col_x
-                    ball.pos[1] = p_closest_y + ball.radius * n_col_y
-                    ball.pos[2] = ball.radius * n_col_z
+                        # Project back to contact boundary ONLY when colliding!
+                        ball.pos[0] = p_closest_x + ball.radius * n_col_x
+                        ball.pos[1] = p_closest_y + ball.radius * n_col_y
+                        ball.pos[2] = ball.radius * n_col_z
                     
-                # 6. Floor out-of-bounds reset
+                # Sphere-Brick Collision Detection & Resolution (AABB vs Sphere)
+                for brick in bricks:
+                    if brick.active:
+                        dx = max(brick.x - brick.size_x/2, min(ball.pos[0], brick.x + brick.size_x/2))
+                        dy = max(brick.y - brick.size_y/2, min(ball.pos[1], brick.y + brick.size_y/2))
+                        dz = max(brick.z - brick.size_z/2, min(ball.pos[2], brick.z + brick.size_z/2))
+                        
+                        dist_x = ball.pos[0] - dx
+                        dist_y = ball.pos[1] - dy
+                        dist_z = ball.pos[2] - dz
+                        dist = np.sqrt(dist_x**2 + dist_y**2 + dist_z**2)
+                        
+                        if dist <= ball.radius:
+                            ox = abs(dist_x)
+                            oy = abs(dist_y)
+                            oz = abs(dist_z)
+                            if ox > oy and ox > oz:
+                                ball.vel[0] = -ball.vel[0]
+                            elif oy > ox and oy > oz:
+                                ball.vel[1] = -ball.vel[1]
+                            else:
+                                ball.vel[2] = -ball.vel[2]
+                                
+                            brick.active = False
+                            # Spawn explosive physical particles
+                            for _ in range(12):
+                                particles.append(Particle3D(brick.x, brick.y, brick.z, brick.color))
+                            break
+                    
+                # 6. Floor out-of-bounds reset (Reset to gentle physical state)
                 if ball.pos[2] < -1.0:
-                    ball.pos = np.array([0.2, 0.1, 4.0], dtype=float)
-                    ball.vel = np.array([1.5, 1.0, 0.0], dtype=float)
+                    ball.pos = np.array([0.2, 0.1, 2.0], dtype=float)
+                    ball.vel = np.array([0.3, 0.2, -0.5], dtype=float)
                     break
             
             # Decoupled grid visual solver: Evaluate grid node displacements exactly ONCE per graphics frame
@@ -392,6 +469,14 @@ def main():
                     if (nx1**2 + ny1**2 < 1.0) and (nx1**2 + ny2**2 < 1.0):
                         pygame.draw.line(SCREEN, color, tuple(proj_grid[i, j]), tuple(proj_grid[i, j+1]), 1)
                     
+        # Draw 3D Bricks (glowing neon boxes)
+        for brick in bricks:
+            brick.draw(SCREEN)
+            
+        # Draw 3D Explosive Particles
+        for p in particles:
+            p.draw(SCREEN)
+                    
         # Draw 3D Ball
         ball_proj_x, ball_proj_y = project(*ball.pos)
         ball_z_scale = (ball.pos[2] + 4.0) / 12.0
@@ -407,9 +492,11 @@ def main():
         # Calculate real-time physical energy components
         ke = 0.5 * ball.mass * np.sum(ball.vel**2)
         pe_grav = ball.mass * 6.2 * ball.pos[2]
-        r_b_end = np.sqrt(ball.pos[0]**2 + ball.pos[1]**2)
+        r_b_end2 = ball.pos[0]**2 + ball.pos[1]**2
+        r_b_end = np.sqrt(r_b_end2)
         if r_b_end <= 1.0:
-            pe_elastic = membrane.get_elastic_energy(ball.radius)
+            factor_end = 1.0 / (1.0 - r_b_end2)
+            pe_elastic = membrane.get_elastic_energy(ball.radius) * factor_end
         else:
             pe_elastic = 0.0
         total = ke + pe_grav + pe_elastic

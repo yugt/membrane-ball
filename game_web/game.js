@@ -136,6 +136,7 @@ class MembranePhysics {
         if (this.rC > 0.0) {
             let bxRel = ballPos.x - px;
             let byRel = ballPos.y - py;
+            let rB = Math.sqrt(bxRel * bxRel + byRel * byRel);
 
             for (let i = 0; i < this.size; i++) {
                 for (let j = 0; j < this.size; j++) {
@@ -161,7 +162,29 @@ class MembranePhysics {
                         let rBall = Math.sqrt((nxRel - bxRel) * (nxRel - bxRel) + (nyRel - byRel) * (nyRel - byRel));
                         this.u[i * this.size + j] = ballPos.z - Math.sqrt(Math.max(0.0, ballRadius * ballRadius - rBall * rBall));
                     } else {
-                        this.u[i * this.size + j] = this.A * Math.log(d);
+                        let uLog = this.A * Math.log(d);
+
+                        // Smooth blending fix for off-center boundary tearing
+                        let dxRel = nxRel - bxRel;
+                        let dyRel = nyRel - byRel;
+                        let distBall = Math.sqrt(dxRel * dxRel + dyRel * dyRel);
+                        let ux = 1.0, uy = 0.0;
+                        if (distBall > 1e-6) {
+                            ux = dxRel / distBall;
+                            uy = dyRel / distBall;
+                        }
+
+                        let projA = bxRel * ux + byRel * uy;
+                        let rBallBoundary = this.rC * (1.0 - rB * rB) / (1.0 + this.rC * projA);
+
+                        let uSphereB = ballPos.z - Math.sqrt(Math.max(0.0, ballRadius * ballRadius - rBallBoundary * rBallBoundary));
+                        let uLogB = this.A * Math.log(this.rC);
+                        let localJump = uSphereB - uLogB;
+
+                        let s = (d < 1.0) ? (1.0 - d) / (1.0 - this.rC) : 0.0;
+                        s = Math.max(0.0, Math.min(1.0, s));
+
+                        this.u[i * this.size + j] = uLog + s * localJump;
                     }
                 }
             }
@@ -173,8 +196,33 @@ class MembranePhysics {
 let scene, camera, renderer;
 let membraneGrid, membraneWire, paddleFrame;
 let ballMesh, ballLight;
+let velocityArrow, accelerationArrow;
 let bricks = [];
 let particles = [];
+
+// Interactive Camera Drag Rotation State
+let isDragging = false;
+let previousMousePosition = { x: 0, y: 0 };
+let cameraTheta = -Math.PI / 2; // horizontal rotation
+let cameraPhi = 0.65; // vertical tilt
+let cameraRadius = 10.0;
+
+window.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    previousMousePosition = { x: e.clientX, y: e.clientY };
+});
+window.addEventListener('mousemove', (e) => {
+    if (isDragging) {
+        let deltaX = e.clientX - previousMousePosition.x;
+        let deltaY = e.clientY - previousMousePosition.y;
+        cameraTheta -= deltaX * 0.005;
+        cameraPhi = Math.max(0.05, Math.min(Math.PI / 2 - 0.05, cameraPhi - deltaY * 0.005));
+    }
+    previousMousePosition = { x: e.clientX, y: e.clientY };
+});
+window.addEventListener('mouseup', () => {
+    isDragging = false;
+});
 
 // Arena Limits
 const ARENA_X = 2.2;
@@ -188,8 +236,8 @@ let gameStarted = true;
 const membraneSize = 41;
 const physics = new MembranePhysics(membraneSize, 30.0); // T = 30.0
 let ball = {
-    pos: new THREE.Vector3(0.2, 0.1, 4.0), // Starts at off-center drop height 4.0
-    vel: new THREE.Vector3(1.5, 1.0, 0.0), // 3D initial velocity
+    pos: new THREE.Vector3(0.2, 0.1, 2.0), // Starts at off-center drop height 2.0
+    vel: new THREE.Vector3(0.3, 0.2, -0.5), // 3D gentle initial velocity
     radius: 0.5,
     mass: 1.0
 };
@@ -225,16 +273,32 @@ function init() {
     ballLight = new THREE.PointLight(0xffd700, 1.2, 8.0);
     scene.add(ballLight);
 
-    const arenaGeom = new THREE.BoxGeometry(ARENA_X * 2, ARENA_Y * 2, ARENA_Z);
-    const arenaEdges = new THREE.EdgesGeometry(arenaGeom);
-    const arenaLine = new THREE.LineSegments(arenaEdges, new THREE.LineBasicMaterial({ color: 0x1f2330 }));
-    arenaLine.position.set(0, 0, ARENA_Z / 2);
-    scene.add(arenaLine);
+    // --- Technical Plotly-style Bounding Axis Box (3.0 x 3.0 x 5.2) ---
+    const boxGeom = new THREE.BoxGeometry(3.0, 3.0, 5.2);
+    const boxEdges = new THREE.EdgesGeometry(boxGeom);
+    const boxLine = new THREE.LineSegments(boxEdges, new THREE.LineBasicMaterial({ color: 0x44444c }));
+    boxLine.position.set(0, 0, 1.4);
+    scene.add(boxLine);
 
-    const floorGrid = new THREE.GridHelper(ARENA_X * 2, 8, 0x11131a, 0x11131a);
-    floorGrid.rotation.x = Math.PI / 2;
-    floorGrid.position.set(0, 0, 0);
-    scene.add(floorGrid);
+    // Bottom Grid Plane (at z = -1.2)
+    const bottomGrid = new THREE.GridHelper(3.0, 6, 0x55555c, 0x222228);
+    bottomGrid.rotation.x = Math.PI / 2;
+    bottomGrid.position.set(0, 0, -1.2);
+    scene.add(bottomGrid);
+
+    // Back Grid Plane (at y = 1.5)
+    const backGrid = new THREE.GridHelper(5.2, 10, 0x55555c, 0x222228);
+    backGrid.position.set(0, 1.5, 1.4);
+    backGrid.rotation.z = Math.PI / 2;
+    backGrid.rotation.x = Math.PI / 2;
+    scene.add(backGrid);
+
+    // Left Grid Plane (at x = -1.5)
+    const leftGrid = new THREE.GridHelper(5.2, 10, 0x55555c, 0x222228);
+    leftGrid.position.set(-1.5, 0, 1.4);
+    leftGrid.rotation.y = Math.PI / 2;
+    leftGrid.rotation.z = Math.PI / 2;
+    scene.add(leftGrid);
 
     const planeGeom = new THREE.PlaneGeometry(2, 2, membraneSize - 1, membraneSize - 1);
     const planeMat = new THREE.MeshBasicMaterial({
@@ -268,13 +332,41 @@ function init() {
     // Concentric Cylinder Bounding Wall Outline (R_cyl = 1.45) in neon pink
     const cylGeom = new THREE.BufferGeometry();
     const cylPoints = [];
-    for (let i = 0; i <= 60; i++) {
-        let theta = (i / 60) * Math.PI * 2;
-        cylPoints.push(new THREE.Vector3(1.45 * Math.cos(theta), 1.45 * Math.sin(theta), 0));
-    }
-    cylGeom.setFromPoints(cylPoints);
-    const cylFrame = new THREE.LineLoop(cylGeom, new THREE.LineBasicMaterial({ color: 0xff1493, linewidth: 1.5 }));
-    scene.add(cylFrame);
+    // --- 3D Parametric Bounding Cylinder (R_cyl = 1.45) matching the Plotly scene ---
+    const cylRadius = 1.45;
+    const cylHeight = 5.2; // extending from z = -1.2 to z = 4.0
+    const cylinderGeom = new THREE.CylinderGeometry(cylRadius, cylRadius, cylHeight, 40, 1, true);
+    cylinderGeom.rotateX(Math.PI / 2); // align along Z axis
+    const cylinderMat = new THREE.MeshBasicMaterial({
+        color: 0xff1493,
+        transparent: true,
+        opacity: 0.05,
+        side: THREE.DoubleSide
+    });
+    const cylinderMesh = new THREE.Mesh(cylinderGeom, cylinderMat);
+    cylinderMesh.position.set(0, 0, 1.4); // center at z = 1.4
+    scene.add(cylinderMesh);
+
+    // --- Interactive 3D Arrow Helpers for Velocity & Acceleration ---
+    velocityArrow = new THREE.ArrowHelper(
+        new THREE.Vector3(0, 0, 1),
+        new THREE.Vector3(0, 0, 0),
+        0.5,
+        0xff4500, // orange-red
+        0.15, // head length
+        0.08  // head width
+    );
+    scene.add(velocityArrow);
+
+    accelerationArrow = new THREE.ArrowHelper(
+        new THREE.Vector3(0, 0, 1),
+        new THREE.Vector3(0, 0, 0),
+        0.5,
+        0x00ffff, // cyan
+        0.15,
+        0.08
+    );
+    scene.add(accelerationArrow);
 
     const ballGeom = new THREE.SphereGeometry(ball.radius, 32, 32);
     const ballMat = new THREE.MeshStandardMaterial({
@@ -287,14 +379,75 @@ function init() {
     scene.add(ballMesh);
 
     bricks = [];
+    initBricks();
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+}
+
+function initBricks() {
+    // Clear old bricks
+    bricks.forEach(b => scene.remove(b.mesh));
+    bricks = [];
+
+    const colors = [0xff1493, 0x00bfff, 0x32cd32];
+    for (let row = 0; row < 3; row++) {
+        let color = colors[row % colors.length];
+        for (let col = 0; col < 4; col++) {
+            let bx = -0.75 + col * 0.5;
+            let by = -0.5 + row * 0.5;
+            let bz = 4.0 + row * 0.5;
+
+            const brickGeom = new THREE.BoxGeometry(0.4, 0.4, 0.15);
+            const brickMat = new THREE.MeshStandardMaterial({
+                color: color,
+                emissive: color,
+                emissiveIntensity: 0.6,
+                roughness: 0.2,
+                metalness: 0.1
+            });
+            const mesh = new THREE.Mesh(brickGeom, brickMat);
+            mesh.position.set(bx, by, bz);
+            scene.add(mesh);
+
+            bricks.push({
+                mesh: mesh,
+                x: bx,
+                y: by,
+                z: bz,
+                size_x: 0.4,
+                size_y: 0.4,
+                size_z: 0.15,
+                active: true
+            });
+        }
+    }
 }
 
 function onMouseMove(event) {
-    // IGNORED IN STATIC MODE
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const target = new THREE.Vector3();
+    if (raycaster.ray.intersectPlane(planeZ0, target)) {
+        px = Math.max(-0.8, Math.min(0.8, target.x));
+        py = Math.max(-0.8, Math.min(0.8, target.y));
+    }
 }
 
 function onTouchMove(event) {
-    // IGNORED IN STATIC MODE
+    if (event.touches.length > 0) {
+        event.preventDefault();
+        mouse.x = (event.touches[0].clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.touches[0].clientY / window.innerHeight) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const target = new THREE.Vector3();
+        if (raycaster.ray.intersectPlane(planeZ0, target)) {
+            px = Math.max(-0.8, Math.min(0.8, target.x));
+            py = Math.max(-0.8, Math.min(0.8, target.y));
+        }
+    }
 }
 
 function onWindowResize() {
@@ -316,18 +469,15 @@ function animate(time) {
     dt = Math.min(dt, 0.05);
 
     if (gameStarted) {
-        px = 0.0;
-        py = 0.0;
-        pVx = 0.0;
-        pVy = 0.0;
-
+        // px and py follow the mouse/touch coordinates continuously via raycasting
         paddleFrame.position.set(px, py, 0);
         membraneGrid.position.set(px, py, 0);
         membraneWire.position.set(px, py, 0);
 
-        // 3. Substepped Physics Engine (Strict Conservation of Energy & Momentum)
+        // 3. Substepped Physics Engine in buttery-smooth 30% slow-motion!
+        const dtPhysics = 0.3 * dt;
         const substeps = 20; // High substepping inside WebGL for perfect visual stability
-        const subDt = dt / substeps;
+        const subDt = dtPhysics / substeps;
 
         for (let step = 0; step < substeps; step++) {
             // 1. Compute forces at current pos
@@ -337,31 +487,45 @@ function animate(time) {
             physics.updatePhysicsState(ball.pos, ball.radius, px, py);
 
             let forceZ = 0.0;
+            let forceX = 0.0;
+            let forceY = 0.0;
             if (bDist <= 1.0 && physics.rC > 0.0) {
                 let S = Math.sqrt(Math.max(1e-15, ball.radius * ball.radius - physics.rC * physics.rC));
-                forceZ = 2.0 * Math.PI * physics.tension * (physics.rC * physics.rC) / S;
+                let FzCentered = 2.0 * Math.PI * physics.tension * (physics.rC * physics.rC) / S;
+                let UeCentered = physics.getElasticEnergy(ball.radius);
+                
+                // Off-center potential scaling factor
+                let rB2 = bxRel * bxRel + byRel * byRel;
+                let factor = 1.0 / (1.0 - rB2);
+                
+                forceZ = FzCentered * factor;
+                forceX = - (2.0 * bxRel / Math.pow(1.0 - rB2, 2)) * UeCentered;
+                forceY = - (2.0 * byRel / Math.pow(1.0 - rB2, 2)) * UeCentered;
             }
 
-            // 2. Update velocity (Symplectic Euler: velocity updated first)
+            // 2. Update velocity (Symplectic Euler)
+            ball.vel.x += (forceX / ball.mass) * subDt;
+            ball.vel.y += (forceY / ball.mass) * subDt;
             ball.vel.z += (-6.2 + forceZ / ball.mass) * subDt;
             ball.vel.clampScalar(-25.0, 25.0);
 
-            // 3. Update position (Symplectic Euler: position integrated using new velocity)
+            // 3. Update position (Symplectic Euler)
             ball.pos.addScaledVector(ball.vel, subDt);
 
             // 4. Concentric Cylinder constraint (R_cyl = 1.45) with clamping
             const RCyl = 1.45;
             let ballR = Math.sqrt(ball.pos.x * ball.pos.x + ball.pos.y * ball.pos.y);
-            if (ballR >= RCyl) {
+            if (ballR >= RCyl - ball.radius) {
                 let nx = ball.pos.x / ballR;
                 let ny = ball.pos.y / ballR;
                 let vDotN = ball.vel.x * nx + ball.vel.y * ny;
                 if (vDotN > 0) {
                     ball.vel.x -= 2.0 * vDotN * nx;
                     ball.vel.y -= 2.0 * vDotN * ny;
+                    // Project back to contact boundary ONLY when colliding!
+                    ball.pos.x = (RCyl - ball.radius) * nx;
+                    ball.pos.y = (RCyl - ball.radius) * ny;
                 }
-                ball.pos.x = RCyl * nx;
-                ball.pos.y = RCyl * ny;
             }
 
             // 5. Rigid Circular Frame Ring (R_frame = 1.0) with clamping
@@ -393,17 +557,59 @@ function animate(time) {
                     if (step === 0 && Math.abs(ball.vel.z) > 0.5) {
                         audio.playBounce();
                     }
+                    // Project back to contact boundary ONLY when colliding!
+                    ball.pos.x = pClosestX + ball.radius * nColX;
+                    ball.pos.y = pClosestY + ball.radius * nColY;
+                    ball.pos.z = ball.radius * nColZ;
                 }
-                // Project back to contact boundary
-                ball.pos.x = pClosestX + ball.radius * nColX;
-                ball.pos.y = pClosestY + ball.radius * nColY;
-                ball.pos.z = ball.radius * nColZ;
             }
 
-            // 6. Floor out-of-bounds reset
+            // --- Sphere-AABB Brick Collision Detection & Resolution ---
+            for (let b of bricks) {
+                if (b.active) {
+                    let b_dx = Math.max(b.x - b.size_x/2, Math.min(ball.pos.x, b.x + b.size_x/2));
+                    let b_dy = Math.max(b.y - b.size_y/2, Math.min(ball.pos.y, b.y + b.size_y/2));
+                    let b_dz = Math.max(b.z - b.size_z/2, Math.min(ball.pos.z, b.z + b.size_z/2));
+
+                    let b_distX = ball.pos.x - b_dx;
+                    let b_distY = ball.pos.y - b_dy;
+                    let b_distZ = ball.pos.z - b_dz;
+                    let b_dist = Math.sqrt(b_distX*b_distX + b_distY*b_distY + b_distZ*b_distZ);
+
+                    if (b_dist <= ball.radius) {
+                        let ox = Math.abs(b_distX);
+                        let oy = Math.abs(b_distY);
+                        let oz = Math.abs(b_distZ);
+
+                        if (ox > oy && ox > oz) {
+                            ball.vel.x = -ball.vel.x;
+                        } else if (oy > ox && oy > oz) {
+                            ball.vel.y = -ball.vel.y;
+                        } else {
+                            ball.vel.z = -ball.vel.z;
+                        }
+
+                        b.active = false;
+                        scene.remove(b.mesh);
+                        audio.playHitBrick();
+                        break;
+                    }
+                }
+            }
+
+            // Endless reset: if all bricks are destroyed, spawn them again!
+            let anyActive = false;
+            for (let b of bricks) {
+                if (b.active) anyActive = true;
+            }
+            if (!anyActive) {
+                initBricks();
+            }
+
+            // 6. Floor out-of-bounds reset (Reset to gentle physical state)
             if (ball.pos.z < -1.0) {
-                ball.pos.set(0.2, 0.1, 4.0);
-                ball.vel.set(1.5, 1.0, 0.0);
+                ball.pos.set(0.2, 0.1, 2.0);
+                ball.vel.set(0.3, 0.2, -0.5);
                 break;
             }
         }
@@ -434,6 +640,46 @@ function animate(time) {
 
         ballMesh.position.copy(ball.pos);
         ballLight.position.copy(ball.pos);
+
+        // --- Update Velocity & Acceleration 3D Vector Arrows at Center of the Ball ---
+        velocityArrow.position.copy(ball.pos);
+        let vDir = ball.vel.clone().normalize();
+        let vLen = ball.vel.length() * 0.2; // scale length (same as Plotly)
+        if (vLen > 0.01) {
+            velocityArrow.setDirection(vDir);
+            velocityArrow.setLength(vLen, 0.12, 0.06);
+            velocityArrow.visible = true;
+        } else {
+            velocityArrow.visible = false;
+        }
+
+        // Compute local acceleration vector based on active forces
+        let bxRel = ball.pos.x - px;
+        let byRel = ball.pos.y - py;
+        let bDist = Math.sqrt(bxRel * bxRel + byRel * byRel);
+        physics.updatePhysicsState(ball.pos, ball.radius, px, py);
+        let fZ = 0.0, fX = 0.0, fY = 0.0;
+        if (bDist <= 1.0 && physics.rC > 0.0) {
+            let S = Math.sqrt(Math.max(1e-15, ball.radius * ball.radius - physics.rC * physics.rC));
+            let FzCentered = 2.0 * Math.PI * physics.tension * (physics.rC * physics.rC) / S;
+            let UeCentered = physics.getElasticEnergy(ball.radius);
+            let rB2 = bxRel * bxRel + byRel * byRel;
+            let factor = 1.0 / (1.0 - rB2);
+            fZ = FzCentered * factor;
+            fX = - (2.0 * bxRel / Math.pow(1.0 - rB2, 2)) * UeCentered;
+            fY = - (2.0 * byRel / Math.pow(1.0 - rB2, 2)) * UeCentered;
+        }
+        let aVec = new THREE.Vector3(fX / ball.mass, fY / ball.mass, -6.2 + fZ / ball.mass);
+        accelerationArrow.position.copy(ball.pos);
+        let aDir = aVec.clone().normalize();
+        let aLen = aVec.length() * 0.02; // scale length (same as Plotly)
+        if (aLen > 0.01) {
+            accelerationArrow.setDirection(aDir);
+            accelerationArrow.setLength(aLen, 0.12, 0.06);
+            accelerationArrow.visible = true;
+        } else {
+            accelerationArrow.visible = false;
+        }
     }
 
     // Calculate real-time physical energy components
@@ -441,12 +687,19 @@ function animate(time) {
     let ke = 0.5 * ball.mass * ballSpeedSq;
     let peGrav = ball.mass * 6.2 * ball.pos.z;
     let rBEnd = Math.sqrt(ball.pos.x * ball.pos.x + ball.pos.y * ball.pos.y);
-    let peElastic = (rBEnd <= 1.0) ? physics.getElasticEnergy(ball.radius) : 0.0;
+    let peElastic = 0.0;
+    if (rBEnd <= 1.0) {
+        let rBEnd2 = ball.pos.x * ball.pos.x + ball.pos.y * ball.pos.y;
+        let factorEnd = 1.0 / (1.0 - rBEnd2);
+        peElastic = physics.getElasticEnergy(ball.radius) * factorEnd;
+    }
     let total = ke + peGrav + peElastic;
     updateEnergyPlot(ke, peGrav, peElastic, total);
 
-    camera.position.set(0, -6.5, 7.5);
-    camera.lookAt(0, 0.8, 2.5);
+    camera.position.x = cameraRadius * Math.cos(cameraTheta) * Math.cos(cameraPhi);
+    camera.position.y = cameraRadius * Math.sin(cameraTheta) * Math.cos(cameraPhi);
+    camera.position.z = cameraRadius * Math.sin(cameraPhi);
+    camera.lookAt(0, 0.8, 1.5);
 
     renderer.render(scene, camera);
 }

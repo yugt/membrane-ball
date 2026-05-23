@@ -6,3 +6,6 @@ __pycache__/
 
 # Local configuration
 .vscode/
+
+# Generated Plotly presentation and diagnostic files
+*.html

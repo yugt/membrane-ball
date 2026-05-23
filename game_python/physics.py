@@ -82,8 +82,9 @@ class MembranePhysics:
             bx_rel = ball_pos[0] - px
             by_rel = ball_pos[1] - py
             z_b = ball_pos[2]
+            r_b = np.sqrt(bx_rel**2 + by_rel**2)
             
-            # Evaluate exact shape across the grid
+            # Evaluate exact shape across the grid with smooth blending
             for i in range(self.size):
                 for j in range(self.size):
                     # Node coordinates relative to paddle center [-1.0, 1.0]
@@ -111,8 +112,33 @@ class MembranePhysics:
                         r_ball = np.sqrt((nx_rel - bx_rel)**2 + (ny_rel - by_rel)**2)
                         self.u[i, j] = z_b - np.sqrt(max(0.0, ball_radius**2 - r_ball**2))
                     else:
-                        # Outside contact patch: exact harmonic logarithmic funnel
-                        self.u[i, j] = self.A * np.log(d)
+                        # Outside contact patch: exact harmonic logarithmic funnel with boundary blending
+                        u_log = self.A * np.log(d)
+                        
+                        # Project physical ray direction from ball center
+                        dx_rel = nx_rel - bx_rel
+                        dy_rel = ny_rel - by_rel
+                        dist_ball = np.sqrt(dx_rel**2 + dy_rel**2)
+                        if dist_ball > 1e-6:
+                            ux = dx_rel / dist_ball
+                            uy = dy_rel / dist_ball
+                        else:
+                            ux, uy = 1.0, 0.0
+                            
+                        # Find exact physical distance to the contact boundary in this direction
+                        proj_a = bx_rel * ux + by_rel * uy
+                        r_ball_boundary = self.r_c * (1.0 - r_b**2) / (1.0 + self.r_c * proj_a)
+                        
+                        # Compute jump at this boundary point
+                        u_sphere_b = z_b - np.sqrt(max(0.0, ball_radius**2 - r_ball_boundary**2))
+                        u_log_b = self.A * np.log(self.r_c)
+                        local_jump = u_sphere_b - u_log_b
+                        
+                        # Blend jump smoothly to 0 at clamped frame (d = 1.0)
+                        s = (1.0 - d) / (1.0 - self.r_c) if d < 1.0 else 0.0
+                        s = max(0.0, min(1.0, s))
+                        
+                        self.u[i, j] = u_log + s * local_jump
         else:
             self.A = 0.0
 
