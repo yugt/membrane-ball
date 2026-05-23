@@ -81,28 +81,28 @@ class MembranePhysics {
     solveContactRadius(zB, Rball) {
         if (zB >= Rball) return 0.0;
 
-        let rC = Rball * 0.3; // Initial guess
+        let rC = Rball * 0.5; // Initial guess
 
-        for (let iter = 0; iter < 6; iter++) {
-            rC = Math.max(1e-4, Math.min(rC, Rball * 0.96));
+        for (let iter = 0; iter < 12; iter++) {
+            rC = Math.max(1e-7, Math.min(rC, Rball * 0.9999));
             let S = Math.sqrt(Rball * Rball - rC * rC);
 
             let fVal = S + (rC * rC * Math.log(rC)) / S;
             let fPrime = (rC * Math.log(rC) / S) * (2.0 + (rC * rC) / (S * S));
 
             let diff = fVal - zB;
-            if (Math.abs(diff) < 1e-5) break;
+            if (Math.abs(diff) < 1e-10) break;
 
             rC = rC - diff / fPrime;
         }
 
-        return Math.max(0.0, Math.min(rC, Rball * 0.96));
+        return Math.max(0.0, Math.min(rC, Rball * 0.9999));
     }
 
     getElasticEnergy(ballRadius) {
         if (this.rC <= 0.0) return 0.0;
         let R = ballRadius;
-        let S = Math.sqrt(Math.max(1e-9, R * R - this.rC * this.rC));
+        let S = Math.sqrt(Math.max(1e-15, R * R - this.rC * this.rC));
         let term1 = -0.5 * this.rC * this.rC;
         let term2 = -R * R * Math.log(S / R);
         let term3 = -(Math.pow(this.rC, 4) * Math.log(this.rC)) / (S * S);
@@ -188,8 +188,8 @@ let gameStarted = true;
 const membraneSize = 41;
 const physics = new MembranePhysics(membraneSize, 30.0); // T = 30.0
 let ball = {
-    pos: new THREE.Vector3(0.0, 0.0, 4.0), // Starts at concentric drop height 4.0
-    vel: new THREE.Vector3(0.0, 0.0, 0.0), // strictly vertical
+    pos: new THREE.Vector3(0.2, 0.1, 4.0), // Starts at off-center drop height 4.0
+    vel: new THREE.Vector3(1.5, 1.0, 0.0), // 3D initial velocity
     radius: 0.5,
     mass: 1.0
 };
@@ -265,6 +265,17 @@ function init() {
     paddleFrame = new THREE.LineLoop(circleGeom, new THREE.LineBasicMaterial({ color: 0x32cd32, linewidth: 2 }));
     scene.add(paddleFrame);
 
+    // Concentric Cylinder Bounding Wall Outline (R_cyl = 1.45) in neon pink
+    const cylGeom = new THREE.BufferGeometry();
+    const cylPoints = [];
+    for (let i = 0; i <= 60; i++) {
+        let theta = (i / 60) * Math.PI * 2;
+        cylPoints.push(new THREE.Vector3(1.45 * Math.cos(theta), 1.45 * Math.sin(theta), 0));
+    }
+    cylGeom.setFromPoints(cylPoints);
+    const cylFrame = new THREE.LineLoop(cylGeom, new THREE.LineBasicMaterial({ color: 0xff1493, linewidth: 1.5 }));
+    scene.add(cylFrame);
+
     const ballGeom = new THREE.SphereGeometry(ball.radius, 32, 32);
     const ballMat = new THREE.MeshStandardMaterial({
         color: 0xffd700,
@@ -319,53 +330,81 @@ function animate(time) {
         const subDt = dt / substeps;
 
         for (let step = 0; step < substeps; step++) {
-            ball.vel.z -= 6.2 * subDt; // gravity
-            ball.pos.addScaledVector(ball.vel, subDt);
-            
-            // CRITICAL: We MUST update the massless membrane contact radius INSIDE the substep loop
-            // to prevent phase-lag artificial energy injection!
-            physics.updatePhysicsState(ball.pos, ball.radius, px, py);
-
-            // Floor Out of Bounds (Indefinite Bouncing Reset)
-            if (ball.pos.z < -1.0) {
-                ball.pos.set(0.0, 0.0, 4.0);
-                ball.vel.set(0.0, 0.0, 0.0);
-                break;
-            }
-
-            // 4. Stable Spring-Damper coupling with Circular Slope-Normal forces
+            // 1. Compute forces at current pos
             let bxRel = ball.pos.x - px;
             let byRel = ball.pos.y - py;
             let bDist = Math.sqrt(bxRel * bxRel + byRel * byRel);
+            physics.updatePhysicsState(ball.pos, ball.radius, px, py);
 
-            if (bDist <= 1.0) {
-                if (physics.rC > 0.0) {
-                    let S = Math.sqrt(Math.max(1e-4, ball.radius * ball.radius - physics.rC * physics.rC));
+            let forceZ = 0.0;
+            if (bDist <= 1.0 && physics.rC > 0.0) {
+                let S = Math.sqrt(Math.max(1e-15, ball.radius * ball.radius - physics.rC * physics.rC));
+                forceZ = 2.0 * Math.PI * physics.tension * (physics.rC * physics.rC) / S;
+            }
 
-                    // Upward vertical force: F_z = 2*pi * T * r_c^2 / S
-                    let forceZ = 2.0 * Math.PI * physics.tension * (physics.rC * physics.rC) / S;
-                    let forceDamping = -physics.cDamping * ball.vel.z;
-                    let forceTotal = forceZ + forceDamping;
+            // 2. Update velocity (Symplectic Euler: velocity updated first)
+            ball.vel.z += (-6.2 + forceZ / ball.mass) * subDt;
+            ball.vel.clampScalar(-25.0, 25.0);
 
-                    forceTotal = Math.max(0.0, forceTotal);
+            // 3. Update position (Symplectic Euler: position integrated using new velocity)
+            ball.pos.addScaledVector(ball.vel, subDt);
 
-                    // Slope normal direction
-                    let slopeMag = physics.rC / S;
-                    let nx = 0, ny = 0;
-                    if (bDist > 1e-4) {
-                        nx = -(bxRel / bDist) * slopeMag;
-                        ny = -(byRel / bDist) * slopeMag;
-                    }
+            // 4. Concentric Cylinder constraint (R_cyl = 1.45) with clamping
+            const RCyl = 1.45;
+            let ballR = Math.sqrt(ball.pos.x * ball.pos.x + ball.pos.y * ball.pos.y);
+            if (ballR >= RCyl) {
+                let nx = ball.pos.x / ballR;
+                let ny = ball.pos.y / ballR;
+                let vDotN = ball.vel.x * nx + ball.vel.y * ny;
+                if (vDotN > 0) {
+                    ball.vel.x -= 2.0 * vDotN * nx;
+                    ball.vel.y -= 2.0 * vDotN * ny;
+                }
+                ball.pos.x = RCyl * nx;
+                ball.pos.y = RCyl * ny;
+            }
 
-                    // Apply force vectors
-                    ball.vel.x += (forceTotal * nx / ball.mass) * subDt;
-                    ball.vel.y += (forceTotal * ny / ball.mass) * subDt;
-                    ball.vel.z += (forceTotal / ball.mass) * subDt;
+            // 5. Rigid Circular Frame Ring (R_frame = 1.0) with clamping
+            const RFrame = 1.0;
+            ballR = Math.sqrt(ball.pos.x * ball.pos.x + ball.pos.y * ball.pos.y);
+            let pClosestX = 0.0, pClosestY = 0.0;
+            if (ballR > 1e-6) {
+                pClosestX = RFrame * (ball.pos.x / ballR);
+                pClosestY = RFrame * (ball.pos.y / ballR);
+            } else {
+                pClosestX = RFrame;
+                pClosestY = 0.0;
+            }
+
+            let dx = ball.pos.x - pClosestX;
+            let dy = ball.pos.y - pClosestY;
+            let dz = ball.pos.z - 0.0;
+            let dRing = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (dRing <= ball.radius) {
+                let nColX = dx / dRing;
+                let nColY = dy / dRing;
+                let nColZ = dz / dRing;
+                let vDotCol = ball.vel.x * nColX + ball.vel.y * nColY + ball.vel.z * nColZ;
+                if (vDotCol < 0) {
+                    ball.vel.x -= 2.0 * vDotCol * nColX;
+                    ball.vel.y -= 2.0 * vDotCol * nColY;
+                    ball.vel.z -= 2.0 * vDotCol * nColZ;
                     
                     if (step === 0 && Math.abs(ball.vel.z) > 0.5) {
                         audio.playBounce();
                     }
                 }
+                // Project back to contact boundary
+                ball.pos.x = pClosestX + ball.radius * nColX;
+                ball.pos.y = pClosestY + ball.radius * nColY;
+                ball.pos.z = ball.radius * nColZ;
+            }
+
+            // 6. Floor out-of-bounds reset
+            if (ball.pos.z < -1.0) {
+                ball.pos.set(0.2, 0.1, 4.0);
+                ball.vel.set(1.5, 1.0, 0.0);
+                break;
             }
         }
 
@@ -401,7 +440,8 @@ function animate(time) {
     let ballSpeedSq = ball.vel.x * ball.vel.x + ball.vel.y * ball.vel.y + ball.vel.z * ball.vel.z;
     let ke = 0.5 * ball.mass * ballSpeedSq;
     let peGrav = ball.mass * 6.2 * ball.pos.z;
-    let peElastic = physics.getElasticEnergy(ball.radius);
+    let rBEnd = Math.sqrt(ball.pos.x * ball.pos.x + ball.pos.y * ball.pos.y);
+    let peElastic = (rBEnd <= 1.0) ? physics.getElasticEnergy(ball.radius) : 0.0;
     let total = ke + peGrav + peElastic;
     updateEnergyPlot(ke, peGrav, peElastic, total);
 

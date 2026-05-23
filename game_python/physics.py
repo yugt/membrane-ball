@@ -19,10 +19,10 @@ class MembranePhysics:
             return 0.0
             
         # Initial guess: start near the center
-        r_c = R_ball * 0.3
+        r_c = R_ball * 0.5
         
-        for _ in range(6):
-            r_c = np.clip(r_c, 1e-4, R_ball * 0.96)
+        for _ in range(12):
+            r_c = np.clip(r_c, 1e-7, R_ball * 0.9999)
             S = np.sqrt(R_ball**2 - r_c**2)
             
             # f(r_c)
@@ -32,19 +32,19 @@ class MembranePhysics:
             f_prime = (r_c * np.log(r_c) / S) * (2.0 + (r_c**2) / (S**2))
             
             diff = f_val - z_b
-            if abs(diff) < 1e-5:
+            if abs(diff) < 1e-10:
                 break
                 
             # Newton step
             r_c = r_c - diff / f_prime
             
-        return np.clip(r_c, 0.0, R_ball * 0.96)
+        return np.clip(r_c, 0.0, R_ball * 0.9999)
 
     def get_elastic_energy(self, ball_radius):
         if self.r_c <= 0.0:
             return 0.0
         R = ball_radius
-        S = np.sqrt(max(1e-9, R**2 - self.r_c**2))
+        S = np.sqrt(max(1e-15, R**2 - self.r_c**2))
         term1 = -0.5 * self.r_c**2
         term2 = -R**2 * np.log(S / R)
         term3 = -(self.r_c**4 * np.log(self.r_c)) / (S**2)

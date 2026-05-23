@@ -241,8 +241,8 @@ def main():
     membrane = MembranePhysics(size=membrane_size, tension=30.0) # tension T = 30.0
     membrane.c_damping = 0.0 # PERFECT CONSERVATIVE STATIC CHECK
     
-    ball = Ball3D(x=0.0, y=0.0, z=4.0, radius=0.5) # R = 0.5 concentric
-    ball.vel = np.array([0.0, 0.0, 0.0], dtype=float)
+    ball = Ball3D(x=0.2, y=0.1, z=4.0, radius=0.5) # R = 0.5 concentric
+    ball.vel = np.array([1.5, 1.0, 0.0], dtype=float)
     
     bricks = init_bricks()
     particles = []
@@ -267,48 +267,69 @@ def main():
             p_vx, p_vy = 0.0, 0.0
             
             # 3. Substepped Physics Engine for Ball Mechanics (Strict Energy/Momentum Conservation)
-            substeps = 20  # High substepping for absolute integration stability
-            sub_dt = dt / substeps
-            
             for step in range(substeps):
-                ball.update(sub_dt, gravity=6.2)
-                
-                # CRITICAL: We MUST update the massless membrane contact radius INSIDE the substep loop
-                # to prevent phase-lag artificial energy injection!
+                # 1. Compute forces at current pos
+                r_b = np.sqrt(ball.pos[0]**2 + ball.pos[1]**2)
                 membrane.update_physics_state(ball.pos, ball.radius, px, py)
                 
-                # Floor out-of-bounds (Reset Ball Position for Continuous Physical Simulation)
+                force_z = 0.0
+                if r_b <= 1.0 and membrane.r_c > 0.0:
+                    S = np.sqrt(max(1e-15, ball.radius**2 - membrane.r_c**2))
+                    force_z = 2.0 * np.pi * membrane.tension * (membrane.r_c**2) / S
+                
+                # 2. Update velocity (Symplectic Euler: velocity updated first)
+                ball.vel[2] += (-6.2 + force_z / ball.mass) * sub_dt
+                ball.vel = np.clip(ball.vel, -25.0, 25.0)
+                
+                # 3. Update position (Symplectic Euler: position updated using new velocity)
+                ball.pos += ball.vel * sub_dt
+                
+                # 4. Concentric Cylinder constraint (R_cyl = 1.45) with clamping
+                R_cyl = 1.45
+                ball_r = np.sqrt(ball.pos[0]**2 + ball.pos[1]**2)
+                if ball_r >= R_cyl:
+                    nx = ball.pos[0] / ball_r
+                    ny = ball.pos[1] / ball_r
+                    v_dot_n = ball.vel[0] * nx + ball.vel[1] * ny
+                    if v_dot_n > 0:
+                        ball.vel[0] -= 2.0 * v_dot_n * nx
+                        ball.vel[1] -= 2.0 * v_dot_n * ny
+                    ball.pos[0] = R_cyl * nx
+                    ball.pos[1] = R_cyl * ny
+                    
+                # 5. Rigid Circular Frame Ring (R_frame = 1.0) with clamping
+                R_frame = 1.0
+                ball_r = np.sqrt(ball.pos[0]**2 + ball.pos[1]**2)
+                if ball_r > 1e-6:
+                    p_closest_x = R_frame * (ball.pos[0] / ball_r)
+                    p_closest_y = R_frame * (ball.pos[1] / ball_r)
+                else:
+                    p_closest_x = R_frame
+                    p_closest_y = 0.0
+                    
+                dx = ball.pos[0] - p_closest_x
+                dy = ball.pos[1] - p_closest_y
+                dz = ball.pos[2] - 0.0
+                d_ring = np.sqrt(dx**2 + dy**2 + dz**2)
+                if d_ring <= ball.radius:
+                    n_col_x = dx / d_ring
+                    n_col_y = dy / d_ring
+                    n_col_z = dz / d_ring
+                    v_dot_col = ball.vel[0] * n_col_x + ball.vel[1] * n_col_y + ball.vel[2] * n_col_z
+                    if v_dot_col < 0:
+                        ball.vel[0] -= 2.0 * v_dot_col * n_col_x
+                        ball.vel[1] -= 2.0 * v_dot_col * n_col_y
+                        ball.vel[2] -= 2.0 * v_dot_col * n_col_z
+                    # Project back to contact boundary
+                    ball.pos[0] = p_closest_x + ball.radius * n_col_x
+                    ball.pos[1] = p_closest_y + ball.radius * n_col_y
+                    ball.pos[2] = ball.radius * n_col_z
+                    
+                # 6. Floor out-of-bounds reset
                 if ball.pos[2] < -1.0:
-                    ball.pos = np.array([0.0, 0.0, 4.0], dtype=float)
-                    ball.vel = np.array([0.0, 0.0, 0.0], dtype=float)
+                    ball.pos = np.array([0.2, 0.1, 4.0], dtype=float)
+                    ball.vel = np.array([1.5, 1.0, 0.0], dtype=float)
                     break
-                
-                bx_rel = ball.pos[0] - px
-                by_rel = ball.pos[1] - py
-                b_dist = np.sqrt(bx_rel**2 + by_rel**2)
-                
-                if b_dist <= 1.0:
-                    if membrane.r_c > 0.0:
-                        S = np.sqrt(max(1e-4, ball.radius**2 - membrane.r_c**2))
-                        
-                        # Upward force F_z = 2*pi * T * r_c^2 / S
-                        force_z = 2.0 * np.pi * membrane.tension * (membrane.r_c**2) / S
-                        force_damping = - membrane.c_damping * ball.vel[2]
-                        force_total = force_z + force_damping
-                        
-                        force_total = max(0.0, force_total)
-                        
-                        slope_mag = membrane.r_c / S
-                        if b_dist > 1e-4:
-                            nx = - (bx_rel / b_dist) * slope_mag
-                            ny = - (by_rel / b_dist) * slope_mag
-                        else:
-                            nx = 0.0
-                            ny = 0.0
-                        
-                        ball.vel[0] += (force_total * nx / ball.mass) * sub_dt
-                        ball.vel[1] += (force_total * ny / ball.mass) * sub_dt
-                        ball.vel[2] += (force_total / ball.mass) * sub_dt
             
             # Decoupled grid visual solver: Evaluate grid node displacements exactly ONCE per graphics frame
             membrane.update_massless(ball.pos, ball.radius, px, py)
@@ -323,6 +344,14 @@ def main():
         
         draw_arena(SCREEN)
         
+        # Draw Bounding Cylinder Frame of radius 1.45 (neon pink/magenta)
+        cyl_points = []
+        for angle in np.linspace(0, 2*np.pi, 60):
+            cx = px + 1.45 * np.cos(angle)
+            cy = py + 1.45 * np.sin(angle)
+            cyl_points.append(project(cx, cy, 0.0))
+        pygame.draw.polygon(SCREEN, (255, 20, 147), cyl_points, 1)
+
         # Draw Paddle Circular Frame locked at center (0, 0)
         circle_points = []
         for angle in np.linspace(0, 2*np.pi, 60):
@@ -376,7 +405,11 @@ def main():
         # Calculate real-time physical energy components
         ke = 0.5 * ball.mass * np.sum(ball.vel**2)
         pe_grav = ball.mass * 6.2 * ball.pos[2]
-        pe_elastic = membrane.get_elastic_energy(ball.radius)
+        r_b_end = np.sqrt(ball.pos[0]**2 + ball.pos[1]**2)
+        if r_b_end <= 1.0:
+            pe_elastic = membrane.get_elastic_energy(ball.radius)
+        else:
+            pe_elastic = 0.0
         total = ke + pe_grav + pe_elastic
         
         draw_physical_verifier(SCREEN, ke, pe_grav, pe_elastic, total)
