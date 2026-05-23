@@ -267,6 +267,8 @@ def main():
             p_vx, p_vy = 0.0, 0.0
             
             # 3. Substepped Physics Engine for Ball Mechanics (Strict Energy/Momentum Conservation)
+            substeps = 20
+            sub_dt = dt / substeps
             for step in range(substeps):
                 # 1. Compute forces at current pos
                 r_b = np.sqrt(ball.pos[0]**2 + ball.pos[1]**2)
