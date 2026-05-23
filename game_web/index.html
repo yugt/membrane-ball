@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Membrane Breakout 3D</title>
+    <meta name="description" content="An interactive 3D breakout game with a flexible membrane physics solver. Bounce the ball and smash neon blocks in real-time!">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+    <div id="game-container"></div>
+    
+    <!-- Real-time Physical Energy Debugger/Verifier Overlay -->
+    <div id="debugger-overlay" class="hud-item">
+        <div class="hud-label">PHYSICAL VERIFIER (ENERGY CONSERVATION)</div>
+        <canvas id="energy-canvas" width="320" height="150"></canvas>
+        <div class="energy-legend">
+            <div class="legend-item"><span class="legend-dot ke"></span><span>KE: <span id="ke-val">0.00</span></span></div>
+            <div class="legend-item"><span class="legend-dot pe-grav"></span><span>PE<sub>grav</sub>: <span id="pe-grav-val">0.00</span></span></div>
+            <div class="legend-item"><span class="legend-dot pe-elastic"></span><span>PE<sub>elastic</sub>: <span id="pe-elastic-val">0.00</span></span></div>
+            <div class="legend-item"><span class="legend-dot total"></span><span>Total: <span id="total-val">0.00</span></span></div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
