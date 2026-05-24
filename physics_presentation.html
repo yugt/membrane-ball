@@ -404,8 +404,8 @@
         // SECTION 2: 3D MEMBRANE-BALL CONTACT VIEWPORT (PEAK DEFLECTION)
         // -----------------------------------------------------------------
         
-        // 1. Generate Ball Sphere coordinates (Center at [0.2, 0.1, 0.35], Radius 0.5)
-        const bx_b = 0.2, by_b = 0.1, bz_b = 0.35, r_ball = 0.5;
+        // 1. Generate Ball Sphere coordinates (Center at [0.2, 0.1, -0.19], Radius 0.5)
+        const bx_b = 0.2, by_b = 0.1, bz_b = -0.19, r_ball = 0.5;
         const b_x_mesh = [];
         const b_y_mesh = [];
         const b_z_mesh = [];
@@ -442,7 +442,7 @@
         const m_x = [];
         const m_y = [];
         const m_z = [];
-        const r_c_val = 0.35; // contact radius
+        const r_c_val = 0.40; // contact radius
         const A_coef = r_c_val * r_c_val / Math.sqrt(r_ball*r_ball - r_c_val*r_c_val); // slope coefficient
         const r_b_val = Math.sqrt(bx_b*bx_b + by_b*by_b);
 
