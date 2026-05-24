@@ -465,7 +465,7 @@
                 let d = Math.sqrt((numX*numX + numY*numY) / (denX*denX + denY*denY));
 
                 if (d <= r_c_val) {
-                    let r_ball_node = Math.sqrt((nx_rel - bx_b)*(nx_rel - bx_b) + (ny_rel - by_rel)*(ny_rel - by_rel));
+                    let r_ball_node = Math.sqrt((nx_rel - bx_b)*(nx_rel - bx_b) + (ny_rel - by_b)*(ny_rel - by_b));
                     m_z.push(bz_b - Math.sqrt(Math.max(0.0, r_ball*r_ball - r_ball_node*r_ball_node)));
                 } else {
                     let u_log = A_coef * Math.log(d);
