@@ -346,8 +346,9 @@ def main():
                     ny = ball.pos[1] / ball_r
                     v_dot_n = ball.vel[0] * nx + ball.vel[1] * ny
                     if v_dot_n > 0:
-                        ball.vel[0] -= 2.0 * v_dot_n * nx
-                        ball.vel[1] -= 2.0 * v_dot_n * ny
+                        # Rebound with e = 0.98 restitution
+                        ball.vel[0] -= 1.98 * v_dot_n * nx
+                        ball.vel[1] -= 1.98 * v_dot_n * ny
                         # Project back to contact boundary ONLY when colliding!
                         ball.pos[0] = (R_cyl - ball.radius) * nx
                         ball.pos[1] = (R_cyl - ball.radius) * ny
@@ -372,9 +373,10 @@ def main():
                     n_col_z = dz / d_ring
                     v_dot_col = ball.vel[0] * n_col_x + ball.vel[1] * n_col_y + ball.vel[2] * n_col_z
                     if v_dot_col < 0:
-                        ball.vel[0] -= 2.0 * v_dot_col * n_col_x
-                        ball.vel[1] -= 2.0 * v_dot_col * n_col_y
-                        ball.vel[2] -= 2.0 * v_dot_col * n_col_z
+                        # Rebound with e = 0.98 restitution
+                        ball.vel[0] -= 1.98 * v_dot_col * n_col_x
+                        ball.vel[1] -= 1.98 * v_dot_col * n_col_y
+                        ball.vel[2] -= 1.98 * v_dot_col * n_col_z
                         # Project back to contact boundary ONLY when colliding!
                         ball.pos[0] = p_closest_x + ball.radius * n_col_x
                         ball.pos[1] = p_closest_y + ball.radius * n_col_y

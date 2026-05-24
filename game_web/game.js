@@ -531,8 +531,9 @@ function animate(time) {
                 let ny = ball.pos.y / ballR;
                 let vDotN = ball.vel.x * nx + ball.vel.y * ny;
                 if (vDotN > 0) {
-                    ball.vel.x -= 2.0 * vDotN * nx;
-                    ball.vel.y -= 2.0 * vDotN * ny;
+                    // Rebound with e = 0.98 restitution
+                    ball.vel.x -= 1.98 * vDotN * nx;
+                    ball.vel.y -= 1.98 * vDotN * ny;
                     // Project back to contact boundary ONLY when colliding!
                     ball.pos.x = (RCyl - ball.radius) * nx;
                     ball.pos.y = (RCyl - ball.radius) * ny;
@@ -561,9 +562,10 @@ function animate(time) {
                 let nColZ = dz / dRing;
                 let vDotCol = ball.vel.x * nColX + ball.vel.y * nColY + ball.vel.z * nColZ;
                 if (vDotCol < 0) {
-                    ball.vel.x -= 2.0 * vDotCol * nColX;
-                    ball.vel.y -= 2.0 * vDotCol * nColY;
-                    ball.vel.z -= 2.0 * vDotCol * nColZ;
+                    // Rebound with e = 0.98 restitution
+                    ball.vel.x -= 1.98 * vDotCol * nColX;
+                    ball.vel.y -= 1.98 * vDotCol * nColY;
+                    ball.vel.z -= 1.98 * vDotCol * nColZ;
                     
                     if (step === 0 && Math.abs(ball.vel.z) > 0.5) {
                         audio.playBounce();
