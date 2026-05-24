@@ -359,18 +359,17 @@ def run_simulation_and_analyze():
     # Configure play/pause controls and slider matching the legacy presentation
     names = [f"{t:.2f}" for t in time_history]
     fig_anim.update_layout(
-        title="<b>Membrane Breakout 3D - FIXED Physical Bounce Animation</b><br>Conservative Scaling Potential, Symmetric Lagrangian, and Smooth Conformal Blending",
+        title="<b>Membrane Breakout 3D - Physical Bounce Animation</b><br>Conservative Scaling Potential, Symmetric Lagrangian, and Smooth Conformal Blending",
         scene=dict(
-            xaxis=dict(range=[-2.2, 2.2], title='X (m)', backgroundcolor="black", gridcolor="rgba(255,255,255,0.1)"),
-            yaxis=dict(range=[-2.2, 2.2], title='Y (m)', backgroundcolor="black", gridcolor="rgba(255,255,255,0.1)"),
-            zaxis=dict(range=[-1.2, 4.0], title='Z (m)', backgroundcolor="black", gridcolor="rgba(255,255,255,0.1)"),
-            aspectmode='manual',
-            aspectratio=dict(x=1, y=1, z=1.4),
+            xaxis=dict(range=[-2.2, 2.2], title='X (m)', backgroundcolor="#f4f4f6", gridcolor="rgba(0, 0, 0, 0.08)", showbackground=True),
+            yaxis=dict(range=[-2.2, 2.2], title='Y (m)', backgroundcolor="#f4f4f6", gridcolor="rgba(0, 0, 0, 0.08)", showbackground=True),
+            zaxis=dict(range=[-1.2, 4.0], title='Z (m)', backgroundcolor="#f4f4f6", gridcolor="rgba(0, 0, 0, 0.08)", showbackground=True),
+            aspectmode='cube',
             camera=dict(eye=dict(x=1.35, y=-1.35, z=0.7))
         ),
-        paper_bgcolor='#09090e',
-        plot_bgcolor='#09090e',
-        font=dict(color='#f0f0f5', family="Outfit, Arial, sans-serif"),
+        paper_bgcolor='#fdfdfd',
+        plot_bgcolor='#fdfdfd',
+        font=dict(color='#222222', family="Outfit, Arial, sans-serif"),
         updatemenus=[{
             'buttons': [
                 {
