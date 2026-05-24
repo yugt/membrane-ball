@@ -196,6 +196,44 @@
             </ul>
         </div>
 
+        <!-- SECTION 3: Lagrangian & Virtual Work: State Transition -->
+        <div class="card">
+            <h2>3. Lagrangian Principle & Virtual Work: State Transition (\(t \to t + \Delta t\))</h2>
+            <p>The dynamic step-by-step transition of the coupled ball-membrane system from the current scene (state \(t\)) to the next scene (state \(t + \Delta t\)) is governed by a dual-regime framework combining <b>Lagrangian Dynamics</b> for the ball and the <b>Principle of Virtual Work</b> for the membrane.</p>
+            
+            <div class="highlight-box">
+                <p style="font-weight: 600; margin-bottom: 8px; color: var(--text-main);">The Coupled Lagrangian (\(L\)):</p>
+                $$L = T - V = \frac{1}{2} m \|\mathbf{v}\|^2 - \Big( m g z_b + U_e(x_b, y_b, z_b) \Big)$$
+            </div>
+            
+            <p>On each integration time step, the system transitions from the current scene to the next through the following sequence:</p>
+            <ul>
+                <li><b>1. Static Equilibrium of the Membrane (Virtual Work):</b>
+                    <br>Because the membrane is modeled as massless, it has zero inertia and remains in instantaneous static equilibrium. For any virtual displacement \(\delta u\) compatible with the boundary constraints, the virtual work done by internal tension and the ball's contact force \(\mathbf{F}_c\) must vanish:
+                    <div style="margin: 8px 0 15px 18px;">$$\delta W = T \iint_{\Omega} \nabla u \cdot \nabla (\delta u) \, dx \, dy - \mathbf{F}_c \cdot \delta \mathbf{r}_b = 0$$</div>
+                    This is equivalent to solving the exact static shape of the membrane \(u(x, y, t)\) based on the ball's current position \(\mathbf{r}_b(t)\) at time \(t\).
+                </li>
+                <li><b>2. Force Evaluation (Euler-Lagrange):</b>
+                    <br>The membrane's shape exerts a conservative restoring force \(\mathbf{F}_{\text{membrane}}(t)\) back onto the ball center, which is derived exactly from the spatial gradient of our coupled potential:
+                    <div style="margin: 8px 0 15px 18px;">$$\mathbf{F}_{\text{membrane}}(t) = -\nabla_{xyz} U_e(x_b, y_b, z_b) = \begin{bmatrix} 
+                    - \frac{2 x_b}{(1 - r_b^2)^2} U_{e,\text{centered}} \\ 
+                    - \frac{2 y_b}{(1 - r_b^2)^2} U_{e,\text{centered}} \\ 
+                    \frac{F_{z,\text{centered}}}{1 - r_b^2} 
+                    \end{bmatrix}$$</div>
+                </li>
+                <li><b>3. Symplectic State Update:</b>
+                    <br>This conservative force vector is fed into the ball's Euler-Lagrange equations of motion:
+                    <div style="margin: 8px 0 15px 18px;">$$\frac{d}{dt}\left(\frac{\partial L}{\partial \dot{q}}\right) - \frac{\partial L}{\partial q} = 0 \implies m \ddot{\mathbf{r}}_b = \mathbf{F}_{\text{gravity}} + \mathbf{F}_{\text{membrane}}(t)$$</div>
+                    This is integrated over the sub-step \(\Delta t_s\) to find the velocity and position of the next scene:
+                    <div style="margin: 8px 0 15px 18px;">$$\mathbf{v}(t + \Delta t_s) = \mathbf{v}(t) + \frac{\mathbf{F}(t)}{m} \Delta t_s$$</div>
+                    <div style="margin: 8px 0 15px 18px;">$$\mathbf{r}_b(t + \Delta t_s) = \mathbf{r}_b(t) + \mathbf{v}(t + \Delta t_s) \Delta t_s$$</div>
+                </li>
+                <li><b>4. Seamless Mesh Rendering (Smooth Blending):</b>
+                    <br>In the next scene, the membrane's 3D mesh coordinates are updated to \(u(x, y, t + \Delta t_s)\) using our direction-aware blending function to maintain perfect boundary continuity, ready for the next physics tick.
+                </li>
+            </ul>
+        </div>
+
         <footer>
             Core Principles of Constrained Membrane Physics • Constructed with Variational Calculus
         </footer>
