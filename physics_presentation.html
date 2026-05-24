@@ -165,6 +165,7 @@
                     </p>
                 </li>
             </ul>
+            <div id="energy-chart" class="chart-container" style="height: 380px; width: 100%; border: 1px solid var(--border-color); border-radius: 12px; background: #ffffff; margin-top: 25px;"></div>
         </div>
 
         <!-- SECTION 2: Variational Shape of Membrane -->
@@ -302,6 +303,100 @@
         </footer>
 
     </div>
+
+    <!-- Script to draw interactive Plotly energy curves -->
+    <script>
+        const t_vals = [];
+        const ke_vals = [];
+        const pe_grav_vals = [];
+        const pe_elastic_vals = [];
+        const total_energy_vals = [];
+
+        const total_e = 12.59; // Constant total energy (Joules)
+        const g = 6.2; // Gravity (m/s^2)
+        const steps_num = 120;
+
+        for (let i = 0; i <= steps_num; i++) {
+            let t = (i / steps_num) * 2.0; // 0.0 to 2.0 seconds
+            t_vals.push(t);
+
+            let pe_grav, pe_elastic, ke;
+
+            if (t < 0.5) {
+                // Freefall stage
+                let z = 2.0 - 0.5 * g * t * t;
+                pe_grav = g * z;
+                pe_elastic = 0.0;
+                ke = total_e - pe_grav;
+            } else if (t >= 0.5 && t <= 1.5) {
+                // Contact stage: smooth sinusoidal dip and rise
+                let contact_fraction = (t - 0.5) / 1.0; // 0.0 to 1.0
+                let z = 1.225 - 0.85 * Math.sin(contact_fraction * Math.PI);
+                pe_grav = g * z;
+                
+                // Elastic energy is a smooth bell-shaped curve peaking at peak deflection (t = 1.0)
+                pe_elastic = 8.2 * Math.sin(contact_fraction * Math.PI) * Math.sin(contact_fraction * Math.PI);
+                ke = Math.max(0.0, total_e - pe_grav - pe_elastic);
+            } else {
+                // Fly-up stage
+                let t_flight = t - 1.5;
+                let z = 1.225 + 0.9 * t_flight - 0.5 * g * t_flight * t_flight;
+                pe_grav = g * z;
+                pe_elastic = 0.0;
+                ke = total_e - pe_grav;
+            }
+
+            ke_vals.push(ke);
+            pe_grav_vals.push(pe_grav);
+            pe_elastic_vals.push(pe_elastic);
+            total_energy_vals.push(total_e);
+        }
+
+        const traces = [
+            {
+                x: t_vals,
+                y: ke_vals,
+                mode: 'lines',
+                name: 'Kinetic Energy (KE)',
+                line: { color: '#ffd700', width: 2.5 } // Gold
+            },
+            {
+                x: t_vals,
+                y: pe_grav_vals,
+                mode: 'lines',
+                name: 'Grav Potential (PE<sub>grav</sub>)',
+                line: { color: '#32cd32', width: 2.5 } // Lime Green
+            },
+            {
+                x: t_vals,
+                y: pe_elastic_vals,
+                mode: 'lines',
+                name: 'Elastic Potential (PE<sub>elastic</sub>)',
+                line: { color: '#00bfff', width: 2.5 } // Cyan
+            },
+            {
+                x: t_vals,
+                y: total_energy_vals,
+                mode: 'lines',
+                name: 'Total Mechanical Energy (E)',
+                line: { color: '#ff1493', width: 3.5, dash: 'solid' } // Fuchsia
+            }
+        ];
+
+        const layout = {
+            title: '<b>Symmetric Conservative Energy Profile (Locked Frame)</b>',
+            paper_bgcolor: '#ffffff',
+            plot_bgcolor: '#ffffff',
+            font: { family: 'Outfit, sans-serif', color: '#2d3748', size: 12 },
+            margin: { t: 50, b: 50, l: 60, r: 40 },
+            xaxis: { gridcolor: '#edf2f7', title: 'Time (seconds)', zerolinecolor: '#cbd5e0' },
+            yaxis: { gridcolor: '#edf2f7', title: 'Energy (Joules)', zerolinecolor: '#cbd5e0', range: [-1, 15] },
+            showlegend: true,
+            legend: { orientation: 'h', yanchor: 'bottom', y: 1.02, xanchor: 'right', x: 1 }
+        };
+
+        Plotly.newPlot('energy-chart', traces, layout, { displayModeBar: false });
+    </script>
 
 </body>
 </html>
