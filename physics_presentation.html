@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Core Principles of Constrained Membrane Physics</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- MathJax for rendering LaTeX equations -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #f5f6f8;
+            --card-bg: #ffffff;
+            --border-color: #e2e8f0;
+            --text-main: #2d3748;
+            --text-muted: #718096;
+            --primary-color: #007acc;
+            --accent-green: #38a169;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Outfit', sans-serif;
+            line-height: 1.6;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 850px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #1a202c;
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 1.05rem;
+            color: var(--text-muted);
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 35px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 18px;
+            border-left: 4px solid var(--primary-color);
+            padding-left: 12px;
+        }
+
+        p {
+            color: #4a5568;
+            font-size: 1.05rem;
+            margin-bottom: 15px;
+        }
+
+        .highlight-box {
+            background: #f7fafc;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        li {
+            margin-bottom: 10px;
+            font-size: 1rem;
+            color: #4a5568;
+            position: relative;
+            padding-left: 18px;
+        }
+
+        li::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            background: #edf2f7;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <header>
+            <h1>CONSTRAINED MEMBRANE PHYSICS</h1>
+            <div class="subtitle">Core Mathematical Principles of Energy Conservation and Variational Shape Minimization</div>
+        </header>
+
+        <!-- SECTION 1: Conservation of Energy -->
+        <div class="card">
+            <h2>1. Conservation of Energy</h2>
+            <p>If the paddle frame is locked in place (the stationary boundary condition \(\mathbf{v}_{\text{paddle}} = \mathbf{0}\)), the coupled ball-membrane system acts as a perfectly conservative physical system.</p>
+            <p>The total mechanical energy—representing the sum of the ball's kinetic energy, gravitational potential energy, and the membrane's elastic potential energy—remains strictly constant over time:</p>
+            
+            <div class="highlight-box">
+                $$E_{\text{total}} = K + U_g + U_e = \text{constant}$$
+            </div>
+            
+            <p>Where the individual energy components are defined mathematically as:</p>
+            <ul>
+                <li><b>Kinetic Energy (\(K\))</b> of the ball: 
+                    <div style="margin: 8px 0 15px 18px;">\(K = \frac{1}{2} m \|\mathbf{v}\|^2\)</div>
+                </li>
+                <li><b>Gravitational Potential Energy (\(U_g\))</b> of the ball: 
+                    <div style="margin: 8px 0 15px 18px;">\(U_g = m g z_b\)</div>
+                </li>
+                <li><b>Elastic Potential Energy (\(U_e\))</b> stored in the stretched membrane:
+                    <div style="margin: 8px 0 15px 18px;">\(U_e = \frac{U_{e,\text{centered}}(z_b)}{1 - (x_b^2 + y_b^2)}\)</div>
+                    <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 4px; padding-left: 18px;">
+                        Note: The denominator \(1 - (x_b^2 + y_b^2)\) scales the potential energy based on the ball's off-center distance, naturally representing the increased stiffness of the membrane near the clamped boundary.
+                    </p>
+                </li>
+            </ul>
+        </div>
+
+        <!-- SECTION 2: Variational Shape of Membrane -->
+        <div class="card">
+            <h2>2. Variational Membrane Shape & Dirichlet Principle</h2>
+            <p>The shape of the circular massless membrane \(u(x, y)\) is governed by the **Dirichlet Principle** of variational calculus: the membrane must deform to the exact profile that minimizes its total elastic potential energy under the physical constraint of the contacting sphere.</p>
+            
+            <div class="highlight-box">
+                <p style="font-weight: 600; margin-bottom: 8px; color: var(--text-main);">Energy Minimization Objective:</p>
+                $$\text{Minimize } E_{\text{elastic}} = \frac{1}{2} T \iint_{\Omega} \|\nabla u\|^2 \, dx \, dy$$
+            </div>
+            
+            <p>This variational principle divides the membrane shape into two distinct, coupled zones:</p>
+            <ul>
+                <li><b>Inside the Contact Area (\(d \le r_c\))</b>:
+                    <br>The membrane is kinematically constrained to conform perfectly to the spherical bottom of the ball of radius \(R\):
+                    <div style="margin: 8px 0 15px 18px;">$$u(x, y) = z_b - \sqrt{R^2 - r_{\text{ball}}^2}$$</div>
+                </li>
+                <li><b>Outside the Contact Area (\(d > r_c\))</b>:
+                    <br>Free from any external load, the membrane minimizes its elastic (Dirichlet) energy. By the Euler-Lagrange equations, this corresponds to solving the <b>Laplace Equation</b>:
+                    <div style="margin: 8px 0 15px 18px;">$$\nabla^2 u = 0 \implies u(d) = A \ln(d)$$</div>
+                    <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 4px; padding-left: 18px;">
+                        This yields the exact logarithmic funnel profile of a massless sheet.
+                    </p>
+                </li>
+                <li><b>The Contact Boundary (\(d = r_c\))</b>:
+                    <br>The contact radius \(r_c\) and coefficient \(A\) are solved analytically by matching both the heights (continuity) and the slopes (smoothness) at the perimeter where the two regions meet, yielding the absolute global minimum of the system's energy.
+                </li>
+            </ul>
+        </div>
+
+        <footer>
+            Core Principles of Constrained Membrane Physics • Constructed with Variational Calculus
+        </footer>
+
+    </div>
+
+</body>
+</html>
