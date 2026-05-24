@@ -364,7 +364,8 @@ def run_simulation_and_analyze():
             xaxis=dict(range=[-2.2, 2.2], title='X (m)', backgroundcolor="#f4f4f6", gridcolor="rgba(0, 0, 0, 0.08)", showbackground=True),
             yaxis=dict(range=[-2.2, 2.2], title='Y (m)', backgroundcolor="#f4f4f6", gridcolor="rgba(0, 0, 0, 0.08)", showbackground=True),
             zaxis=dict(range=[-1.2, 4.0], title='Z (m)', backgroundcolor="#f4f4f6", gridcolor="rgba(0, 0, 0, 0.08)", showbackground=True),
-            aspectmode='cube',
+            aspectmode='manual',
+            aspectratio=dict(x=1, y=1, z=1.18),
             camera=dict(eye=dict(x=1.35, y=-1.35, z=0.7))
         ),
         paper_bgcolor='#fdfdfd',
