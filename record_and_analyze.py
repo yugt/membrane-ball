@@ -101,8 +101,8 @@ def run_simulation_and_analyze():
             ball.vel[2] += (-gravity + force_z / ball_mass) * sub_dt
             ball.pos += ball.vel * sub_dt
             
-            # 4. Concentric Cylinder constraint (R_cyl = 2.0) with clamping
-            R_cyl = 2.0
+            # 4. Concentric Cylinder constraint (R_cyl = 1.45) with clamping
+            R_cyl = 1.45
             ball_r = np.sqrt(ball.pos[0]**2 + ball.pos[1]**2)
             if ball_r >= R_cyl - ball.radius:
                 nx = ball.pos[0] / ball_r
@@ -240,8 +240,8 @@ def run_simulation_and_analyze():
     # ==========================================
     print("Generating interactive 3D bounce animation...")
     
-    # Setup cylinder wall mesh for 3D plot (R_cyl = 2.0)
-    R_cyl = 2.0
+    # Setup cylinder wall mesh for 3D plot (R_cyl = 1.45)
+    R_cyl = 1.45
     theta_cyl = np.linspace(0, 2 * np.pi, 50)
     z_cyl_vals = np.linspace(-1.2, 4.0, 20)
     theta_grid, z_grid_mesh = np.meshgrid(theta_cyl, z_cyl_vals)
@@ -361,11 +361,11 @@ def run_simulation_and_analyze():
     fig_anim.update_layout(
         title="<b>Membrane Breakout 3D - Physical Bounce Animation</b><br>Conservative Scaling Potential, Symmetric Lagrangian, and Smooth Conformal Blending",
         scene=dict(
-            xaxis=dict(range=[-2.2, 2.2], title='X (m)', backgroundcolor="#f4f4f6", gridcolor="rgba(0, 0, 0, 0.08)", showbackground=True),
-            yaxis=dict(range=[-2.2, 2.2], title='Y (m)', backgroundcolor="#f4f4f6", gridcolor="rgba(0, 0, 0, 0.08)", showbackground=True),
+            xaxis=dict(range=[-1.6, 1.6], title='X (m)', backgroundcolor="#f4f4f6", gridcolor="rgba(0, 0, 0, 0.08)", showbackground=True),
+            yaxis=dict(range=[-1.6, 1.6], title='Y (m)', backgroundcolor="#f4f4f6", gridcolor="rgba(0, 0, 0, 0.08)", showbackground=True),
             zaxis=dict(range=[-1.2, 4.0], title='Z (m)', backgroundcolor="#f4f4f6", gridcolor="rgba(0, 0, 0, 0.08)", showbackground=True),
             aspectmode='manual',
-            aspectratio=dict(x=1, y=1, z=1.18),
+            aspectratio=dict(x=1, y=1, z=1.625),
             camera=dict(eye=dict(x=1.35, y=-1.35, z=0.7))
         ),
         paper_bgcolor='#fdfdfd',

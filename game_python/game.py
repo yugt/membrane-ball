@@ -293,11 +293,11 @@ def main():
             px = (mx - WIDTH // 2) / SCALE
             py = (my - HEIGHT // 2 - 120) / (SCALE * np.cos(CAMERA_TILT))
             
-            # Clamp paddle center so that the paddle frame (R=1.0) stays inside the cylinder boundary (R_cyl=2.0)
-            R_cyl = 2.0
+            # Clamp paddle center so that the paddle frame (R=1.0) stays inside the cylinder boundary (R_cyl=1.45)
+            R_cyl = 1.45
             R_frame = 1.0
             p_dist = np.sqrt(px**2 + py**2)
-            max_p_dist = R_cyl - R_frame  # 1.0 m
+            max_p_dist = R_cyl - R_frame  # 0.45 m
             if p_dist > max_p_dist:
                 px = max_p_dist * (px / p_dist)
                 py = max_p_dist * (py / p_dist)
@@ -339,7 +339,7 @@ def main():
                 # 3. Update position (Symplectic Euler: position updated using new velocity)
                 ball.pos += ball.vel * sub_dt
                 
-                # 4. Concentric Cylinder constraint (R_cyl = 2.0) with clamping
+                # 4. Concentric Cylinder constraint (R_cyl = 1.45) with clamping
                 ball_r = np.sqrt(ball.pos[0]**2 + ball.pos[1]**2)
                 if ball_r >= R_cyl - ball.radius:
                     nx = ball.pos[0] / ball_r
@@ -428,11 +428,11 @@ def main():
         
         draw_arena(SCREEN)
         
-        # Draw Bounding Cylinder Frame of radius 2.0 (neon pink/magenta) fixed at the origin
+        # Draw Bounding Cylinder Frame of radius 1.45 (neon pink/magenta) fixed at the origin
         cyl_points = []
         for angle in np.linspace(0, 2*np.pi, 60):
-            cx = 2.0 * np.cos(angle)
-            cy = 2.0 * np.sin(angle)
+            cx = 1.45 * np.cos(angle)
+            cy = 1.45 * np.sin(angle)
             cyl_points.append(project(cx, cy, 0.0))
         pygame.draw.polygon(SCREEN, (255, 20, 147), cyl_points, 1)
 

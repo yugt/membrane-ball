@@ -329,8 +329,8 @@ function init() {
     paddleFrame = new THREE.LineLoop(circleGeom, new THREE.LineBasicMaterial({ color: 0x32cd32, linewidth: 2 }));
     scene.add(paddleFrame);
 
-    // --- 3D Parametric Bounding Cylinder (R_cyl = 2.0) matching the Plotly scene ---
-    const cylRadius = 2.0;
+    // --- 3D Parametric Bounding Cylinder (R_cyl = 1.45) matching the Plotly scene ---
+    const cylRadius = 1.45;
     const cylHeight = 5.2; // extending from z = -1.2 to z = 4.0
     const cylinderGeom = new THREE.CylinderGeometry(cylRadius, cylRadius, cylHeight, 40, 1, true);
     cylinderGeom.rotateX(Math.PI / 2); // align along Z axis
@@ -428,7 +428,7 @@ function onMouseMove(event) {
     const target = new THREE.Vector3();
     if (raycaster.ray.intersectPlane(planeZ0, target)) {
         let pDist = Math.sqrt(target.x * target.x + target.y * target.y);
-        let maxPDist = 2.0 - 1.0; // R_cyl - R_frame = 1.0 m
+        let maxPDist = 1.45 - 1.0; // R_cyl - R_frame = 0.45 m
         if (pDist > maxPDist) {
             px = maxPDist * (target.x / pDist);
             py = maxPDist * (target.y / pDist);
@@ -449,7 +449,7 @@ function onTouchMove(event) {
         const target = new THREE.Vector3();
         if (raycaster.ray.intersectPlane(planeZ0, target)) {
             let pDist = Math.sqrt(target.x * target.x + target.y * target.y);
-            let maxPDist = 2.0 - 1.0; // R_cyl - R_frame = 1.0 m
+            let maxPDist = 1.45 - 1.0; // R_cyl - R_frame = 0.45 m
             if (pDist > maxPDist) {
                 px = maxPDist * (target.x / pDist);
                 py = maxPDist * (target.y / pDist);
@@ -523,8 +523,8 @@ function animate(time) {
             // 3. Update position (Symplectic Euler)
             ball.pos.addScaledVector(ball.vel, subDt);
 
-            // 4. Concentric Cylinder constraint (R_cyl = 2.0) with clamping
-            const RCyl = 2.0;
+            // 4. Concentric Cylinder constraint (R_cyl = 1.45) with clamping
+            const RCyl = 1.45;
             let ballR = Math.sqrt(ball.pos.x * ball.pos.x + ball.pos.y * ball.pos.y);
             if (ballR >= RCyl - ball.radius) {
                 let nx = ball.pos.x / ballR;
