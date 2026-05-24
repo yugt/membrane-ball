@@ -303,8 +303,8 @@ def main():
                 py = max_p_dist * (py / p_dist)
             p_vx, p_vy = 0.0, 0.0
             
-            # 3. Substepped Physics Engine in buttery-smooth 30% slow-motion!
-            dt_physics = 0.3 / 60.0
+            # 3. Substepped Physics Engine in buttery-smooth 60% speed!
+            dt_physics = 0.6 / 60.0
             substeps = 20
             sub_dt = dt_physics / substeps
             for step in range(substeps):

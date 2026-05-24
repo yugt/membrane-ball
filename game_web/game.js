@@ -485,8 +485,8 @@ function animate(time) {
         membraneGrid.position.set(px, py, 0);
         membraneWire.position.set(px, py, 0);
 
-        // 3. Substepped Physics Engine in buttery-smooth 30% slow-motion!
-        const dtPhysics = 0.3 * dt;
+        // 3. Substepped Physics Engine in buttery-smooth 60% speed!
+        const dtPhysics = 0.6 * dt;
         const substeps = 20; // High substepping inside WebGL for perfect visual stability
         const subDt = dtPhysics / substeps;
 
