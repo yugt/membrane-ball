@@ -271,6 +271,32 @@
             </ul>
         </div>
 
+        <!-- SECTION 5: Auxiliary Constraints & Numerical Safeguards -->
+        <div class="card">
+            <h2>5. Auxiliary Constraints & Numerical Safeguards</h2>
+            <p>To ensure the physics solver is 100% stable, singularity-free, and behaves naturally over infinite play cycles, we enforce five auxiliary kinematic and numerical constraints:</p>
+            <ul>
+                <li><b>1. Paddle Frame Kinematic Clamping (\(\sqrt{p_x^2 + p_y^2} \le 0.45\text{ m}\)):</b>
+                    <br>While the ball is constrained inside the cylinder, the moving paddle frame itself (radius \(R_{\text{frame}} = 1.0\text{ m}\)) is kinematically clamped to stay strictly inside the outer cylinder wall (\(R_{\text{cyl}} = 1.45\text{ m}\)). 
+                    If the mouse/touch controls go past this limit, the paddle center is projected back onto the boundary circle, blocking the frame from ever clipping through the cylinder wall.
+                </li>
+                <li style="margin-top: 10px;"><b>2. Conformal Solver Singularity Clamping (\(10^{-7} \le r_c \le 0.9999 R_{\text{ball}}\)):</b>
+                    <br>When the ball deforms the membrane extremely deeply, the solved contact radius \(r_c\) approaches the sphere's physical radius \(R_{\text{ball}} = 0.5\text{ m}\). This would make the radical term \(S = \sqrt{R_{\text{ball}}^2 - r_c^2} \to 0\), causing division-by-zero singularities in forces and coefficients. By clamping \(r_c \le 0.9999 R_{\text{ball}}\), we mathematically prevent these singularities and ensure the game is fully crash-proof.
+                </li>
+                <li style="margin-top: 10px;"><b>3. Terminal Velocity Governor (\(\|\mathbf{v}\| \le 25\text{ m/s}\)):</b>
+                    <br>To prevent extreme, high-frequency acceleration spikes (such as deep boundary impacts) from creating numerical overshoots, the ball's 3D velocity vector is continuously clamped to a terminal speed of \(25\text{ m/s}\), acting as a physical safety governor.
+                </li>
+                <li style="margin-top: 10px;"><b>4. Slope/Derivative Matching Boundary Constraint:</b>
+                    <br>At the contact boundary \(d = r_c\), we enforce both height continuity and spatial derivative (slope) matching:
+                    <div style="margin: 8px 0 15px 18px;">$$\frac{\partial u_{\text{sphere}}}{\partial d}\Big|_{d=r_c} = \frac{\partial u_{\text{funnel}}}{\partial d}\Big|_{d=r_c} \implies \frac{r_c}{\sqrt{R_{\text{ball}}^2 - r_c^2}} = \frac{A}{r_c}$$</div>
+                    This derivative match is what analytically determines our logarithmic coefficient \(A = \frac{r_c^2}{\sqrt{R_{\text{ball}}^2 - r_c^2}}\). Without this boundary condition, the mesh would have a sharp crease, representing infinite physical stress.
+                </li>
+                <li style="margin-top: 10px;"><b>5. Floor Out-of-Bounds Reset (Temporal Reset):</b>
+                    <br>If the ball falls through the inner gap of the paddle frame and slips below \(z_b < -1.0\text{ m}\), it is cleanly reset back to our verified, gentle physical state (\(\mathbf{r}_b \leftarrow [0.2, 0.1, 2.0]^T\), \(\mathbf{v}_b \leftarrow [0.3, 0.2, -0.5]^T\)), preventing infinite freefall and keeping the verifier graph consistent.
+                </li>
+            </ul>
+        </div>
+
         <footer>
             Core Principles of Constrained Membrane Physics • Constructed with Variational Calculus
         </footer>
