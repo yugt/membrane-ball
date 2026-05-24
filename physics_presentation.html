@@ -193,10 +193,11 @@
                         This yields the exact logarithmic funnel profile of a massless sheet.
                     </p>
                 </li>
-                <li><b>The Contact Boundary (\(d = r_c\))</b>:
+                 <li><b>The Contact Boundary (\(d = r_c\))</b>:
                     <br>The contact radius \(r_c\) and coefficient \(A\) are solved analytically by matching both the heights (continuity) and the slopes (smoothness) at the perimeter where the two regions meet, yielding the absolute global minimum of the system's energy.
                 </li>
             </ul>
+            <div id="membrane-3d-chart" class="chart-container" style="height: 420px; width: 100%; border: 1px solid var(--border-color); border-radius: 12px; background: #ffffff; margin-top: 25px;"></div>
         </div>
 
         <!-- SECTION 3: Lagrangian & Virtual Work: State Transition -->
@@ -398,6 +399,208 @@
         };
 
         Plotly.newPlot('energy-chart', traces, layout, { displayModeBar: false });
+
+        // -----------------------------------------------------------------
+        // SECTION 2: 3D MEMBRANE-BALL CONTACT VIEWPORT (PEAK DEFLECTION)
+        // -----------------------------------------------------------------
+        
+        // 1. Generate Ball Sphere coordinates (Center at [0.2, 0.1, 0.35], Radius 0.5)
+        const bx_b = 0.2, by_b = 0.1, bz_b = 0.35, r_ball = 0.5;
+        const b_x_mesh = [];
+        const b_y_mesh = [];
+        const b_z_mesh = [];
+        const mesh_size = 20;
+        for (let i = 0; i <= mesh_size; i++) {
+            let u = (i / mesh_size) * 2.0 * Math.PI;
+            let x_row = [];
+            let y_row = [];
+            let z_row = [];
+            for (let j = 0; j <= mesh_size; j++) {
+                let v = (j / mesh_size) * Math.PI;
+                x_row.push(bx_b + r_ball * Math.cos(u) * Math.sin(v));
+                y_row.push(by_b + r_ball * Math.sin(u) * Math.sin(v));
+                z_row.push(bz_b + r_ball * Math.cos(v));
+            }
+            b_x_mesh.push(x_row);
+            b_y_mesh.push(y_row);
+            b_z_mesh.push(z_row);
+        }
+
+        const ball_surface_trace = {
+            type: 'surface',
+            x: b_x_mesh,
+            y: b_y_mesh,
+            z: b_z_mesh,
+            showscale: false,
+            opacity: 0.35,
+            colorscale: [[0, 'blue'], [1, 'green']],
+            name: 'Ball (t=1.0s)'
+        };
+
+        // 2. Generate Membrane Grid coordinates (N = 31)
+        const N_grid = 31;
+        const m_x = [];
+        const m_y = [];
+        const m_z = [];
+        const r_c_val = 0.35; // contact radius
+        const A_coef = r_c_val * r_c_val / Math.sqrt(r_ball*r_ball - r_c_val*r_c_val); // slope coefficient
+        const r_b_val = Math.sqrt(bx_b*bx_b + by_b*by_b);
+
+        for (let i = 0; i < N_grid; i++) {
+            let nx_rel = -1.0 + (i / (N_grid - 1)) * 2.0;
+            for (let j = 0; j < N_grid; j++) {
+                let ny_rel = -1.0 + (j / (N_grid - 1)) * 2.0;
+                
+                let r_node = Math.sqrt(nx_rel*nx_rel + ny_rel*ny_rel);
+                if (r_node >= 1.0) continue; // clamp to circle boundary
+
+                m_x.push(nx_rel);
+                m_y.push(ny_rel);
+
+                // Conformal map d
+                let numX = nx_rel - bx_b;
+                let numY = ny_rel - by_b;
+                let denX = 1.0 - (nx_rel * bx_b + ny_rel * by_b);
+                let denY = nx_rel * by_b - ny_rel * bx_b;
+                let d = Math.sqrt((numX*numX + numY*numY) / (denX*denX + denY*denY));
+
+                if (d <= r_c_val) {
+                    let r_ball_node = Math.sqrt((nx_rel - bx_b)*(nx_rel - bx_b) + (ny_rel - by_rel)*(ny_rel - by_rel));
+                    m_z.push(bz_b - Math.sqrt(Math.max(0.0, r_ball*r_ball - r_ball_node*r_ball_node)));
+                } else {
+                    let u_log = A_coef * Math.log(d);
+                    
+                    // Conformal blending formula:
+                    let dxRel = nx_rel - bx_b;
+                    let dyRel = ny_rel - by_b;
+                    let distBall = Math.sqrt(dxRel*dxRel + dyRel*dyRel);
+                    let ux = 1.0, uy = 0.0;
+                    if (distBall > 1e-6) {
+                        ux = dxRel / distBall;
+                        uy = dyRel / distBall;
+                    }
+                    let projA = bx_b * ux + by_b * uy;
+                    let r_ball_boundary = r_c_val * (1.0 - r_b_val*r_b_val) / (1.0 + r_c_val * projA);
+
+                    let u_sphere_b = bz_b - Math.sqrt(Math.max(0.0, r_ball*r_ball - r_ball_boundary*r_ball_boundary));
+                    let u_log_b = A_coef * Math.log(r_c_val);
+                    let local_jump = u_sphere_b - u_log_b;
+
+                    let s = (1.0 - d) / (1.0 - r_c_val);
+                    s = Math.max(0.0, Math.min(1.0, s));
+
+                    m_z.push(u_log + s * local_jump);
+                }
+            }
+        }
+
+        const membrane_scatter_trace = {
+            type: 'scatter3d',
+            x: m_x,
+            y: m_y,
+            z: m_z,
+            mode: 'markers',
+            marker: {
+                size: 2.5,
+                color: m_z.map(val => Math.abs(val)),
+                colorscale: 'Electric',
+                cmin: 0.0,
+                cmax: 0.3,
+                showscale: false
+            },
+            name: 'Membrane'
+        };
+
+        // 3. Boundary Ring
+        const ring_x = [];
+        const ring_y = [];
+        const ring_z = [];
+        for (let i = 0; i <= 100; i++) {
+            let theta = (i / 100) * 2.0 * Math.PI;
+            ring_x.push(Math.cos(theta));
+            ring_y.push(Math.sin(theta));
+            ring_z.push(0.0);
+        }
+        const boundary_ring_trace = {
+            type: 'scatter3d',
+            x: ring_x,
+            y: ring_y,
+            z: ring_z,
+            mode: 'lines',
+            line: { width: 3.5, color: '#32cd32' },
+            name: 'Boundary'
+        };
+
+        // 4. Cylinder Wall (R_cyl = 1.45, extending from z = -1.2 to z = 4.0)
+        const RCyl_v = 1.45;
+        const cy_x_mesh = [];
+        const cy_y_mesh = [];
+        const cy_z_mesh = [];
+        const z_slices = 10;
+        const theta_slices = 40;
+        for (let i = 0; i <= z_slices; i++) {
+            let z_val = -1.2 + (i / z_slices) * 5.2; // -1.2 to 4.0
+            let x_row = [];
+            let y_row = [];
+            let z_row = [];
+            for (let j = 0; j <= theta_slices; j++) {
+                let theta = (j / theta_slices) * 2.0 * Math.PI;
+                x_row.push(RCyl_v * Math.cos(theta));
+                y_row.push(RCyl_v * Math.sin(theta));
+                z_row.push(z_val);
+            }
+            cy_x_mesh.push(x_row);
+            cy_y_mesh.push(y_row);
+            cy_z_mesh.push(z_row);
+        }
+        const cylinder_surface_trace = {
+            type: 'surface',
+            x: cy_x_mesh,
+            y: cy_y_mesh,
+            z: cy_z_mesh,
+            showscale: false,
+            opacity: 0.05,
+            colorscale: [[0, '#ff1493'], [1, '#ff1493']],
+            name: 'Cylinder Wall'
+        };
+
+        // 5. Vectors (Acceleration vector only at peak contact, pointing upwards)
+        const acc_arrow_trace = {
+            type: 'scatter3d',
+            x: [bx_b, bx_b],
+            y: [by_b, by_b],
+            z: [bz_b, bz_b + 1.2], // huge restoring force vector pointing UP!
+            mode: 'lines+markers',
+            line: { color: '#00ffff', width: 6 },
+            marker: {
+                size: [0, 8],
+                color: '#00ffff',
+                symbol: 'circle'
+            },
+            name: 'Acceleration (Restoring Force)'
+        };
+
+        const traces_3d = [ball_surface_trace, membrane_scatter_trace, boundary_ring_trace, cylinder_surface_trace, acc_arrow_trace];
+
+        const layout_3d = {
+            title: '<b>Variational Boundary Value Contact Solution (t = 1.0s)</b>',
+            scene: {
+                xaxis: { range: [-1.6, 1.6], title: 'X (m)', backgroundcolor: '#f4f4f6', gridcolor: 'rgba(0, 0, 0, 0.08)', showbackground: true },
+                yaxis: { range: [-1.6, 1.6], title: 'Y (m)', backgroundcolor: '#f4f4f6', gridcolor: 'rgba(0, 0, 0, 0.08)', showbackground: true },
+                zaxis: { range: [-1.2, 4.0], title: 'Z (m)', backgroundcolor: '#f4f4f6', gridcolor: 'rgba(0, 0, 0, 0.08)', showbackground: true },
+                aspectmode: 'manual',
+                aspectratio: { x: 1, y: 1, z: 1.625 },
+                camera: { eye: { x: 1.35, y: -1.35, z: 0.7 } }
+            },
+            paper_bgcolor: '#fdfdfd',
+            plot_bgcolor: '#fdfdfd',
+            font: { family: 'Outfit, sans-serif', color: '#2d3748', size: 11 },
+            margin: { t: 40, b: 20, l: 10, r: 10 },
+            showlegend: true,
+            legend: { orientation: 'h', yanchor: 'bottom', y: 1.02, xanchor: 'right', x: 1 }
+        };
+
+        Plotly.newPlot('membrane-3d-chart', traces_3d, layout_3d, { displayModeBar: false });
     </script>
 
 </body>
