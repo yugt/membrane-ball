@@ -234,6 +234,43 @@
             </ul>
         </div>
 
+        <!-- SECTION 4: Rigid-Body Boundary Constraints -->
+        <div class="card">
+            <h2>4. Other Rigid-Body Constraints: (Almost) Elastic Collisions</h2>
+            <p>In addition to the flexible membrane, the ball is constrained laterally and vertically by rigid boundary structures. When the ball impacts these boundaries, we apply <b>Newton's Law of Restitution</b> for rigid-body collisions.</p>
+            
+            <div class="highlight-box">
+                <p style="font-weight: 600; margin-bottom: 8px; color: var(--text-main);">The Velocity Reflection Law:</p>
+                $$\mathbf{v}_{\text{new}} = \mathbf{v} - (1 + e)(\mathbf{v} \cdot \mathbf{n})\mathbf{n}$$
+            </div>
+            
+            <p>The rigid constraints and collision physics are constructed as follows:</p>
+            <ul>
+                <li><b>1. The Concentric Cylinder Boundary (\(R_{\text{cyl}} = 1.45\text{ m}\)):</b>
+                    <br>The outer boundary of the playground is a fixed vertical cylinder. A collision is triggered exactly when the outer boundary (edge) of the sphere touches the cylinder wall:
+                    <div style="margin: 8px 0 15px 18px;">$$r_b = \sqrt{x_b^2 + y_b^2} \ge R_{\text{cyl}} - R_{\text{ball}} = 0.95\text{ m}$$</div>
+                </li>
+                <li><b>2. The Circular Frame Ring (\(R_{\text{frame}} = 1.0\text{ m}\)):</b>
+                    <br>The clamped rigid circular ring holding the membrane acts as a 3D wireframe constraint in the \(z = 0\) plane. A collision occurs when the 3D distance \(d_{\text{ring}}\) from the ball center to the closest point on the ring is less than or equal to the ball's radius:
+                    <div style="margin: 8px 0 15px 18px;">$$d_{\text{ring}} = \sqrt{(r_{xy} - R_{\text{frame}})^2 + z_b^2} \le R_{\text{ball}} = 0.5\text{ m}$$</div>
+                </li>
+                <li><b>3. Restitution & Damping for Game Feel (\(e = 0.95\)):</b>
+                    <br>While we use perfect elasticity (\(e = 1.0\)) in mathematical verification scripts to demonstrate ideal energy conservation, the playable game engines use a calibrated restitution coefficient of <b>\(e = 0.95\)</b>:
+                    <div style="margin: 8px 0 15px 18px;">$$\mathbf{v}_{\text{new}} = \mathbf{v} - 1.95(\mathbf{v} \cdot \mathbf{n})\mathbf{n}$$</div>
+                    <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 4px; padding-left: 18px;">
+                        This 5% kinetic energy dissipation simulates realistic material damping, stabilizes the numerical time-stepping integration, and prevents the ball from entering unplayable high-speed bouncing cycles against the walls.
+                    </p>
+                </li>
+                <li><b>4. Penetration Correction (Clamping):</b>
+                    <br>To prevent visual wall-clipping due to finite time-step sizes, we project/clamp the ball's position exactly back to the contact boundary:
+                    <div style="margin: 8px 0 15px 18px;">$$\mathbf{r}_b = \mathbf{p}_{\text{closest}} + R_{\text{ball}} \mathbf{n}$$</div>
+                    <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 4px; padding-left: 18px;">
+                        Crucially, this projection is executed <b>only when an active collision is taking place</b> (\(\mathbf{v} \cdot \mathbf{n} < 0\)). This prevents the ball from getting "glued" to boundaries when it is moving away, allowing crisp, clean bounces.
+                    </p>
+                </li>
+            </ul>
+        </div>
+
         <footer>
             Core Principles of Constrained Membrane Physics • Constructed with Variational Calculus
         </footer>
