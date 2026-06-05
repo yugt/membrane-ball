@@ -8,6 +8,14 @@ The project is built to show three things clearly:
 - A Python/Pygame prototype of the same idea.
 - Numerical verification scripts that track energy behavior in the membrane-ball system.
 
+## Review Links
+
+- Browser game: [`game_web/index.html`](game_web/index.html)
+- Demo video: [YouTube walkthrough](https://www.youtube.com/watch?v=-JdWYVzKI3c&t=1s)
+- Physics presentation: [`physics_presentation.html`](physics_presentation.html)
+- Technical overview: [`docs/TECHNICAL_OVERVIEW.md`](docs/TECHNICAL_OVERVIEW.md)
+- Smoke verification: `./scripts/verify.sh`
+
 ## Quick Start
 
 ### Browser Demo
@@ -83,6 +91,7 @@ The simulation uses substepped symplectic Euler integration to keep the browser 
 ## What To Evaluate
 
 - `game_web/index.html`: primary interactive demo.
+- `physics_presentation.html`: mathematical presentation of the membrane model and constraints.
 - `game_web/game.js`: Three.js rendering, gameplay loop, contact forces, and live energy plot.
 - `game_python/physics.py`: compact Python membrane/ball model.
 - `verify_energy.py`: reproducible energy-conservation smoke check.

@@ -62,6 +62,17 @@
             color: var(--text-muted);
         }
 
+        .meta-note {
+            display: inline-block;
+            margin-top: 16px;
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 999px;
+            background: #ffffff;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
         .card {
             background: var(--card-bg);
             border: 1px solid var(--border-color);
@@ -140,13 +151,14 @@
         <header>
             <h1>CONSTRAINED MEMBRANE PHYSICS</h1>
             <div class="subtitle">Core Mathematical Principles of Energy Conservation and Variational Shape Minimization</div>
+            <div class="meta-note">Companion demo: <code>game_web/index.html</code> | Verification: <code>./scripts/verify.sh</code></div>
         </header>
 
         <!-- SECTION 1: Conservation of Energy -->
         <div class="card">
             <h2>1. Conservation of Energy</h2>
-            <p>If the paddle frame is locked in place (the stationary boundary condition \(\mathbf{v}_{\text{paddle}} = \mathbf{0}\)), the coupled ball-membrane system acts as a perfectly conservative physical system.</p>
-            <p>The total mechanical energy—representing the sum of the ball's kinetic energy, gravitational potential energy, and the membrane's elastic potential energy—remains strictly constant over time:</p>
+            <p>If the paddle frame is locked in place (the stationary boundary condition \(\mathbf{v}_{\text{paddle}} = \mathbf{0}\)), the coupled ball-membrane system is modeled as a conservative physical system.</p>
+            <p>The total mechanical energy, representing the sum of the ball's kinetic energy, gravitational potential energy, and the membrane's elastic potential energy, remains approximately constant within numerical integration tolerance:</p>
             
             <div class="highlight-box">
                 $$E_{\text{total}} = K + U_g + U_e = \text{constant}$$
@@ -173,7 +185,7 @@
         <!-- SECTION 2: Variational Shape of Membrane -->
         <div class="card">
             <h2>2. Variational Membrane Shape & Dirichlet Principle</h2>
-            <p>The shape of the circular massless membrane \(u(x, y)\) is governed by the **Dirichlet Principle** of variational calculus: the membrane must deform to the exact profile that minimizes its total elastic potential energy under the physical constraint of the contacting sphere.</p>
+            <p>The shape of the circular massless membrane \(u(x, y)\) is governed by the <b>Dirichlet Principle</b> of variational calculus: the membrane deforms toward the profile that minimizes its total elastic potential energy under the physical constraint of the contacting sphere.</p>
             
             <div class="highlight-box">
                 <p style="font-weight: 600; margin-bottom: 8px; color: var(--text-main);">Energy Minimization Objective:</p>
@@ -261,14 +273,14 @@
         <!-- SECTION 5: Auxiliary Constraints & Numerical Safeguards -->
         <div class="card">
             <h2>5. Auxiliary Constraints & Numerical Safeguards</h2>
-            <p>To ensure the physics solver is 100% stable, singularity-free, and behaves naturally over infinite play cycles, we enforce five auxiliary kinematic and numerical constraints:</p>
+            <p>To keep the physics solver stable, singularity-resistant, and well behaved over repeated play cycles, we enforce five auxiliary kinematic and numerical constraints:</p>
             <ul>
                 <li><b>1. Paddle Frame Kinematic Clamping (\(\sqrt{p_x^2 + p_y^2} \le 0.45\text{ m}\)):</b>
                     <br>While the ball is constrained inside the cylinder, the moving paddle frame itself (radius \(R_{\text{frame}} = 1.0\text{ m}\)) is kinematically clamped to stay strictly inside the outer cylinder wall (\(R_{\text{cyl}} = 1.45\text{ m}\)). 
                     If the mouse/touch controls go past this limit, the paddle center is projected back onto the boundary circle, blocking the frame from ever clipping through the cylinder wall.
                 </li>
                 <li style="margin-top: 10px;"><b>2. Conformal Solver Singularity Clamping (\(10^{-7} \le r_c \le 0.9999 R_{\text{ball}}\)):</b>
-                    <br>When the ball deforms the membrane extremely deeply, the solved contact radius \(r_c\) approaches the sphere's physical radius \(R_{\text{ball}} = 0.5\text{ m}\). This would make the radical term \(S = \sqrt{R_{\text{ball}}^2 - r_c^2} \to 0\), causing division-by-zero singularities in forces and coefficients. By clamping \(r_c \le 0.9999 R_{\text{ball}}\), we mathematically prevent these singularities and ensure the game is fully crash-proof.
+                    <br>When the ball deforms the membrane extremely deeply, the solved contact radius \(r_c\) approaches the sphere's physical radius \(R_{\text{ball}} = 0.5\text{ m}\). This would make the radical term \(S = \sqrt{R_{\text{ball}}^2 - r_c^2} \to 0\), causing division-by-zero singularities in forces and coefficients. By clamping \(r_c \le 0.9999 R_{\text{ball}}\), we avoid these singularities and keep the simulation numerically robust.
                 </li>
                 <li style="margin-top: 10px;"><b>3. Terminal Velocity Governor (\(\|\mathbf{v}\| \le 25\text{ m/s}\)):</b>
                     <br>To prevent extreme, high-frequency acceleration spikes (such as deep boundary impacts) from creating numerical overshoots, the ball's 3D velocity vector is continuously clamped to a terminal speed of \(25\text{ m/s}\), acting as a physical safety governor.
