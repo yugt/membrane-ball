@@ -10,7 +10,7 @@ pygame.init()
 WIDTH, HEIGHT = 1024, 768
 FPS = 60
 SCREEN = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Membrane Breakout 3D (Massless Membrane - LOCKED FRAME VERIFICATION)")
+pygame.display.set_caption("Membrane Breakout 3D (Massless Membrane Approximation)")
 CLOCK = pygame.time.Clock()
 
 # Color Palette (Premium Sleek Neon)
@@ -253,7 +253,7 @@ def main():
     
     membrane_size = 31
     membrane = MembranePhysics(size=membrane_size, tension=30.0) # tension T = 30.0
-    membrane.c_damping = 0.0 # PERFECT CONSERVATIVE STATIC CHECK
+    membrane.c_damping = 0.0 # Conservative verification mode
     
     ball = Ball3D(x=0.2, y=0.1, z=2.0, radius=0.5) # R = 0.5 concentric (gentle start)
     ball.vel = np.array([0.3, 0.2, -0.5], dtype=float)
@@ -367,7 +367,7 @@ def main():
                 dy = ball.pos[1] - p_closest_y
                 dz = ball.pos[2] - 0.0
                 d_ring = np.sqrt(dx**2 + dy**2 + dz**2)
-                if d_ring <= ball.radius:
+                if d_ring > 1e-9 and d_ring <= ball.radius:
                     n_col_x = dx / d_ring
                     n_col_y = dy / d_ring
                     n_col_z = dz / d_ring
@@ -494,7 +494,7 @@ def main():
         pygame.draw.circle(SCREEN, COLOR_BALL, (ball_proj_x, ball_proj_y), ball_radius_pixels)
         pygame.draw.circle(SCREEN, (255, 255, 255), (ball_proj_x - ball_radius_pixels//3, ball_proj_y - ball_radius_pixels//3), max(1, ball_radius_pixels//4))
 
-        # HUD and modal screen overlays removed for pure physical simulation
+        # Keep the overlay focused on physical energy verification.
 
         # Calculate real-time physical energy components
         ke = 0.5 * ball.mass * np.sum(ball.vel**2)

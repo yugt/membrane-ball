@@ -129,7 +129,7 @@ def run_simulation_and_analyze():
             dy = ball.pos[1] - p_closest_y
             dz = ball.pos[2] - 0.0
             d_ring = np.sqrt(dx**2 + dy**2 + dz**2)
-            if d_ring <= ball.radius:
+            if d_ring > 1e-9 and d_ring <= ball.radius:
                 n_col_x = dx / d_ring
                 n_col_y = dy / d_ring
                 n_col_z = dz / d_ring

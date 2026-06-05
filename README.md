@@ -1,59 +1,102 @@
 # Membrane Breakout 3D
 
-A playable physics-based Breakout game where the player controls an **elastic membrane frame (trampoline paddle)** to bounce a ball and demolish glowing bricks floating above. 
+A physics-based 3D Breakout prototype where the player controls an elastic circular membrane frame to bounce a ball and break glowing bricks.
 
-This repository contains a clean, scratch-built game structure. The legacy high-fidelity scientific simulation code has been preserved as reference and is `.gitignore`d.
+The project is built to show three things clearly:
 
----
+- A playable browser demo using Three.js.
+- A Python/Pygame prototype of the same idea.
+- Numerical verification scripts that track energy behavior in the membrane-ball system.
+
+## Quick Start
+
+### Browser Demo
+
+```bash
+python3 -m http.server 8000 -d game_web
+```
+
+Open:
+
+```text
+http://localhost:8000/
+```
+
+Controls:
+
+- Move the mouse or touch-drag to move the membrane frame.
+- Drag the scene to rotate the camera.
+- Refresh the page to reset the simulation.
+
+### Python Prototype
+
+This repo uses `uv` for reproducible local execution.
+
+```bash
+uv run python game_python/game.py
+```
+
+### Verification
+
+Run the smoke test:
+
+```bash
+./scripts/verify.sh
+```
+
+Or run the verification scripts individually:
+
+```bash
+uv run python verify_energy.py
+uv run python verify_physics_stage5.py
+```
 
 ## Repository Structure
 
-```
+```text
 Membrane/
-├── game_python/             # Phase 1: Local Python Prototype (Pygame)
-│   ├── game.py              # Pygame application & isometric wireframe rendering
-│   └── physics.py           # Real-time Finite Difference Wave equation solver
-├── game_web/                # Phase 2: Beautiful WebGL Browser Game (Three.js)
-│   ├── index.html           # HTML5 structure with dashboard HUD overlay
-│   ├── style.css            # Dark cyber-neon CSS layout
-│   └── game.js              # Three.js 3D WebGL renderer and dynamic wave solver
-├── .gitignore               # Ignores standard virtual envs and caches
-└── README.md                # Project documentation & instructions
+├── game_web/                 # Main Three.js browser implementation
+│   ├── index.html
+│   ├── style.css
+│   ├── game.js
+│   └── MOBILE_PACKAGING.md
+├── game_python/              # Pygame prototype and reusable Python physics module
+│   ├── game.py
+│   ├── physics.py
+│   └── verify_physics.py
+├── docs/
+│   └── TECHNICAL_OVERVIEW.md # Evaluator-focused implementation overview
+├── scripts/
+│   └── verify.sh             # Syntax and physics smoke checks
+├── verify_energy.py          # Energy conservation verification
+├── verify_physics_stage5.py  # Additional physics verification scenario
+├── record_and_analyze.py     # Plotly analysis/presentation generator
+└── physics_presentation.html # Presentation artifact
 ```
 
----
+## Implementation Notes
 
-## Core Game Mechanics
+The current membrane model is a real-time massless circular membrane approximation. It solves a contact radius for ball/membrane interaction, applies a lightweight elastic force model, and visualizes the resulting membrane shape as a logarithmic/conformal surface.
 
-### 1. Real-time Elastic Membrane Waves
-Instead of using slow optimization loops (L-BFGS), the game integrates a **2D Finite Difference Method (FDM) wave equation** at 60 FPS in real time:
-$$\frac{\partial^2 u}{\partial t^2} = c^2 \nabla^2 u - d \frac{\partial u}{\partial t}$$
-This integrates in `<0.5ms` per frame, causing the membrane to flex, ripple, and oscillate beautifully upon ball impact.
+The simulation uses substepped symplectic Euler integration to keep the browser and Python versions stable enough for interactive playback. The live overlay tracks kinetic, gravitational, elastic, and total energy.
 
-### 2. Physical Coupling & Slice Mechanics
-When the ball hits the membrane, it deforms it based on depth penetration. The membrane applies an upward spring restoring force onto the ball. 
-* **The "Slice" Effect (Horizontal Momentum Transfer):** Moving the paddle frame quickly in the plane just as the ball hits transmits horizontal kinetic energy, letting you "slice" the ball to direct it towards specific bricks.
+## What To Evaluate
 
----
+- `game_web/index.html`: primary interactive demo.
+- `game_web/game.js`: Three.js rendering, gameplay loop, contact forces, and live energy plot.
+- `game_python/physics.py`: compact Python membrane/ball model.
+- `verify_energy.py`: reproducible energy-conservation smoke check.
+- `docs/TECHNICAL_OVERVIEW.md`: technical summary and known limitations.
 
-## Quick Start Instructions
+## Requirements
 
-### Option A: Web-based 3D Game (WebGL + Three.js) — *Recommended*
-Since the WebGL version runs natively in any browser without installing Python packages:
-1. Open the [game_web/index.html](file:///Users/yugt/Documents/Membrane/game_web/index.html) file directly in your browser, or start a local HTTP server inside the `game_web/` directory.
-2. Slide your mouse to move the trampoline paddle in 3D perspective space.
-3. Bounce the ball and demolish the blocks!
+- Python 3.12 or newer for `uv` execution.
+- `uv` for dependency-managed Python commands.
+- A modern browser with WebGL support.
+- Internet access for the browser demo's Three.js CDN dependency.
 
-### Option B: Local Python Game (Pygame + NumPy)
-To run the Pygame prototype locally:
-1. Initialize virtual environment and install dependencies:
-   ```bash
-   uv venv
-   source .venv/bin/activate
-   uv pip install pygame numpy
-   ```
-2. Run the game:
-   ```bash
-   python game_python/game.py
-   ```
-3. Control the paddle frame using your mouse. Press `SPACEBAR` to start/retry!
+## Known Limitations
+
+- The Python and web versions duplicate similar physics logic instead of sharing a single source of truth.
+- The membrane is an interactive approximation, not a full finite-element simulation.
+- Some checked-in HTML files are generated/presentation artifacts rather than source code.

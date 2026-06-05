@@ -205,6 +205,31 @@ body {
 }
 
 /* Real-Time Physical Debugger Overlay Styling */
+#intro-overlay {
+    position: absolute;
+    top: 25px;
+    left: 25px;
+    max-width: 390px;
+    z-index: 10;
+    align-items: flex-start;
+    pointer-events: none;
+}
+
+.intro-title {
+    color: var(--text-main);
+    font-size: 1.2rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+}
+
+.intro-copy {
+    color: #cbd5e0;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    margin-top: 6px;
+}
+
 #debugger-overlay {
     position: absolute;
     bottom: 25px;
@@ -275,3 +300,28 @@ body {
     background-color: var(--neon-pink);
 }
 
+@media (max-width: 720px) {
+    #intro-overlay {
+        top: 12px;
+        left: 12px;
+        right: 12px;
+        max-width: none;
+        padding: 10px 14px;
+    }
+
+    #debugger-overlay {
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        width: auto;
+        padding: 12px;
+    }
+
+    .intro-title {
+        font-size: 1rem;
+    }
+
+    .intro-copy {
+        font-size: 0.78rem;
+    }
+}

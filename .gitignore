@@ -7,5 +7,8 @@ __pycache__/
 # Local configuration
 .vscode/
 
-# Generated Plotly presentation and diagnostic files
-*.html
+# Generated Plotly diagnostic files
+artifacts/
+bounce_metrics.html
+membrane-ball.html
+membrane-ball-wrong.html

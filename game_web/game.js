@@ -1,4 +1,4 @@
-// Cyber-Neon Membrane Breakout 3D Game Engine (Massless Circular Membrane - LOCKED FRAME VERIFICATION)
+// Cyber-Neon Membrane Breakout 3D Game Engine (massless circular membrane approximation)
 
 // --- Audio Synthesizer (Web Audio API) ---
 class GameAudio {
@@ -73,7 +73,7 @@ class MembranePhysics {
         this.size = size;
         this.u = new Float32Array(size * size);
         this.tension = tension; // Physical membrane tension (T)
-        this.cDamping = 0.0;    // PERFECT CONSERVATIVE STATIC CHECK
+        this.cDamping = 0.0;    // Conservative verification mode
         this.rC = 0.0;          // Dynamic contact radius
         this.A = 0.0;           // Dynamic logarithmic coefficient A
     }
@@ -247,7 +247,7 @@ let px = 0.0, py = 0.0;
 let pVx = 0.0, pVy = 0.0;
 let lastPx = 0.0, lastPy = 0.0;
 
-// Raycasting (DEACTIVATED in static verification mode)
+// Raycasting for mouse/touch paddle targeting
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 const planeZ0 = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
@@ -467,7 +467,7 @@ function onWindowResize() {
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-// startGame and restartGame removed for pure simulation
+// The current demo runs continuously; refresh the page to reset.
 
 let lastTime = 0;
 
@@ -556,7 +556,7 @@ function animate(time) {
             let dy = ball.pos.y - pClosestY;
             let dz = ball.pos.z - 0.0;
             let dRing = Math.sqrt(dx * dx + dy * dy + dz * dz);
-            if (dRing <= ball.radius) {
+            if (dRing > 1e-9 && dRing <= ball.radius) {
                 let nColX = dx / dRing;
                 let nColY = dy / dRing;
                 let nColZ = dz / dRing;
