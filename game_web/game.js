@@ -332,7 +332,7 @@ function init() {
     // --- 3D Parametric Bounding Cylinder (R_cyl = 1.45) matching the Plotly scene ---
     const cylRadius = 1.45;
     const cylHeight = 5.2; // extending from z = -1.2 to z = 4.0
-    const cylinderGeom = new THREE.CylinderGeometry(cylRadius, cylRadius, cylHeight, 40, 1, true);
+    const cylinderGeom = new THREE.CylinderGeometry(cylRadius, cylRadius, cylHeight, 32, 8, true);
     cylinderGeom.rotateX(Math.PI / 2); // align along Z axis
     const cylinderMat = new THREE.MeshBasicMaterial({
         color: 0xff1493,
@@ -343,6 +343,17 @@ function init() {
     const cylinderMesh = new THREE.Mesh(cylinderGeom, cylinderMat);
     cylinderMesh.position.set(0, 0, 1.4); // center at z = 1.4
     scene.add(cylinderMesh);
+
+    // Add a wireframe grid to make it look like a futuristic neon forcefield cage
+    const cylWireframeGeom = new THREE.WireframeGeometry(cylinderGeom);
+    const cylWireframeMat = new THREE.LineBasicMaterial({
+        color: 0xff1493,
+        transparent: true,
+        opacity: 0.2
+    });
+    const cylinderWire = new THREE.LineSegments(cylWireframeGeom, cylWireframeMat);
+    cylinderWire.position.set(0, 0, 1.4);
+    scene.add(cylinderWire);
 
     // --- Interactive 3D Arrow Helpers for Velocity & Acceleration ---
     velocityArrow = new THREE.ArrowHelper(
