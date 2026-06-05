@@ -63,6 +63,76 @@ uv run python verify_energy.py
 uv run python verify_physics_stage5.py
 ```
 
+## Physics Model Overview
+
+The game models a ball interacting with a clamped circular membrane. For interview review, the key idea is that the ball, gravity, and membrane are treated as one coupled mechanical system.
+
+When the paddle frame is stationary, the total mechanical energy is tracked as:
+
+$$
+E_{\text{total}} = K + U_g + U_e
+$$
+
+with:
+
+$$
+K = \frac{1}{2}m\lVert \mathbf{v} \rVert^2
+$$
+
+$$
+U_g = mgz_b
+$$
+
+and an off-center membrane energy approximation:
+
+$$
+U_e(x_b, y_b, z_b) = \frac{U_{e,\text{centered}}(z_b)}{1 - (x_b^2 + y_b^2)}
+$$
+
+The denominator increases the effective stiffness as the ball approaches the clamped boundary of the circular membrane.
+
+The membrane shape $u(x, y)$ is based on a massless circular membrane approximation. The elastic energy objective is:
+
+$$
+E_{\text{elastic}} = \frac{1}{2}T\iint_{\Omega}\lVert \nabla u \rVert^2\,dx\,dy
+$$
+
+Inside the contact patch, the membrane conforms to the sphere:
+
+$$
+u(x, y) = z_b - \sqrt{R^2 - r_{\text{ball}}^2}
+$$
+
+Outside the contact patch, the membrane solves the Laplace equation and becomes a logarithmic funnel:
+
+$$
+\nabla^2 u = 0 \quad \Rightarrow \quad u(d) = A\ln(d)
+$$
+
+The contact radius $r_c$ and coefficient $A$ are solved by matching height and slope at the contact boundary:
+
+$$
+\frac{\partial u_{\text{sphere}}}{\partial d}\Big|_{d=r_c}
+=
+\frac{\partial u_{\text{funnel}}}{\partial d}\Big|_{d=r_c}
+\quad \Rightarrow \quad
+A = \frac{r_c^2}{\sqrt{R^2-r_c^2}}
+$$
+
+The simulation then applies the contact force through the work-energy relationship:
+
+$$
+dU_e = -\mathbf{F}_{\text{contact}} \cdot d\mathbf{r}_b
+$$
+
+Rigid constraints such as the cylinder wall and circular frame use a standard velocity reflection rule:
+
+$$
+\mathbf{v}_{\text{new}} = \mathbf{v} - (1 + e)(\mathbf{v}\cdot\mathbf{n})\mathbf{n}
+$$
+
+The browser game uses restitution $e = 0.95$ for game feel, while verification scripts use idealized settings to check energy behavior.
+
 ## Repository Structure
 
 ```text
