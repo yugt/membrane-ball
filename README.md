@@ -10,6 +10,10 @@ The project is built to show three things clearly:
 
 ## Review Links
 
+<a href="https://www.youtube.com/watch?v=-JdWYVzKI3c&t=1s" title="Watch the Membrane Breakout 3D demo video">
+  <img src="https://img.youtube.com/vi/-JdWYVzKI3c/maxresdefault.jpg" alt="Membrane Breakout 3D demo video" width="100%">
+</a>
+
 - Browser game: [`game_web/index.html`](game_web/index.html)
 - Demo video: [YouTube walkthrough](https://www.youtube.com/watch?v=-JdWYVzKI3c&t=1s)
 - Physics presentation: [`physics_presentation.html`](physics_presentation.html)
