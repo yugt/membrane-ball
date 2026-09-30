@@ -3,13 +3,10 @@
 from __future__ import annotations
 
 import json
-import sys
-from pathlib import Path
 
 import numpy as np
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from membrane_rl.anomalies import KINDS, Anomaly  # noqa: E402
 from membrane_rl.episode import run_episode  # noqa: E402

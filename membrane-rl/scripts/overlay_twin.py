@@ -18,7 +18,6 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from membrane_rl.render import RenderConfig, Renderer  # noqa: E402
 from membrane_rl.tracker import read_mp4  # noqa: E402

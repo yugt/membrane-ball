@@ -24,7 +24,6 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from membrane_rl.agent import (PROVIDERS, AgentConfig, build_messages,  # noqa: E402
                                call_model, merge_events, parse_events,

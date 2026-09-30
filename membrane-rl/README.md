@@ -1,7 +1,7 @@
 # membrane-rl
 
-A verifiable-reward multimodal RL environment built on the physics from
-[`yugt/membrane-ball`](https://github.com/yugt/membrane-ball).
+A verifiable-reward multimodal RL environment built on the physics of the
+membrane-ball game in this repository ([`yugt/membrane-ball`](https://github.com/yugt/membrane-ball)).
 
 A VLM is shown rendered frames of a ball interacting with a clamped elastic
 membrane and must predict where the ball will be N frames later. Ground truth
@@ -23,7 +23,7 @@ meaning anything. Measured:
 
 | configuration | energy leak over 5000 steps |
 |---|---|
-| frame at origin, fixed | 3.23 % (bit-for-bit vs upstream `verify_energy.py`) |
+| frame at origin, fixed | 3.23 % (bit-for-bit vs the repo's original `verify_energy.py`) |
 | frame at (0.35, −0.20), fixed | 1.98 % |
 | frame at (−0.40, 0.10), fixed | 3.43 % |
 | frame at (0.25, 0.30), fixed | 2.78 % |
@@ -36,14 +36,16 @@ one scene layout. `tests/test_physics.py` pins all of this.
 
 ## Single source of truth
 
-Upstream carries three copies of the physics (`game_web/game.js`,
+The repo originally carried three copies of the physics (`game_web/game.js`,
 `game_python/physics.py`, `verify_energy.py`). That was a tidiness problem
 before; here it is a correctness problem, because labels must come from exactly
 one implementation. `membrane_rl/physics.py` is a faithful port of the
-energy-conserving reference loop and is the only implementation in this project.
-The port is pinned to upstream to 6 significant figures (leak 3.232784 %, 34 ring
-bounces, 117 cylinder bounces) so a refactor cannot silently corrupt every
-dataset generated afterwards.
+energy-conserving reference loop (the original `verify_energy.py`) and is now
+the repo's reference implementation: root `verify_energy.py` itself runs it. The
+remaining copies are the browser game and the Pygame prototype, which keep their
+own. The port is pinned to the original `verify_energy.py` output to 6
+significant figures (leak 3.232784 %, 34 ring bounces, 117 cylinder bounces) so
+a refactor cannot silently corrupt every dataset generated afterwards.
 
 ---
 
@@ -112,8 +114,23 @@ answer key** — membrane contacts, ring and wall bounces, and five injected
 physically-impossible anomalies — so a video agent's output can be scored
 instead of eyeballed. See [`HACKATHON_RUNBOOK.md`](HACKATHON_RUNBOOK.md).
 
+Install (the scripts live in this repo's `membrane-rl/scripts/` and are not part
+of the installed package):
+
 ```bash
-pip install -r requirements.txt
+# fresh environment / VM: the package from GitHub, then `import membrane_rl`
+pip install "git+https://github.com/yugt/membrane-ball#subdirectory=membrane-rl"
+# add the VLM agent client (openai):
+pip install "membrane-rl[agent] @ git+https://github.com/yugt/membrane-ball#subdirectory=membrane-rl"
+
+# inside a clone of this repo
+uv sync                                  # then: uv run python membrane-rl/scripts/<script>.py ...
+pip install -e "membrane-rl[dev,agent]"  # or, without uv
+```
+
+Then, from `membrane-rl/` (prefix with `uv run` if using uv):
+
+```bash
 python scripts/gen_clips.py --n 20 --out clips/ --annotated
 python scripts/eval_events.py --clips clips/ --detector tracker     # model-free baseline
 python scripts/eval_events.py --clips clips/ --detector twin        # physics twin (fast path)
@@ -153,9 +170,11 @@ tests/
 
 ## Quick start
 
+Install as above (inside the repo: `uv sync`, or `pip install -e "membrane-rl[dev,agent]"`),
+then from `membrane-rl/`:
+
 ```bash
-pip install -r requirements.txt
-python3 -m pytest -q tests/                       # 46 tests, ~10 s
+python3 -m pytest -q tests/                       # 46 tests, ~10 s; or ./scripts/verify.sh from the repo root
 python3 scripts/gen_dataset.py --train 2000 --test 300 --horizon 25
 python3 scripts/baseline_probe.py --backend oracle --split test   # upper bound
 python3 scripts/baseline_probe.py --backend naive  --split test --horizon 25

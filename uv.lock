@@ -2,6 +2,12 @@ version = 1
 revision = 3
 requires-python = ">=3.12"
 
+[manifest]
+members = [
+    "membrane-breakout-3d",
+    "membrane-rl",
+]
+
 [[package]]
 name = "annotated-types"
 version = "0.8.0"
@@ -213,15 +219,14 @@ name = "membrane-breakout-3d"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "imageio-ffmpeg" },
+    { name = "membrane-rl" },
     { name = "numpy" },
-    { name = "pillow" },
     { name = "pygame" },
 ]
 
 [package.optional-dependencies]
 agent = [
-    { name = "openai" },
+    { name = "membrane-rl", extra = ["agent"] },
 ]
 analysis = [
     { name = "plotly" },
@@ -234,14 +239,49 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "imageio-ffmpeg", specifier = ">=0.5" },
+    { name = "membrane-rl", editable = "membrane-rl" },
+    { name = "membrane-rl", extras = ["agent"], marker = "extra == 'agent'", editable = "membrane-rl" },
     { name = "numpy", specifier = ">=2.0" },
-    { name = "openai", marker = "extra == 'agent'", specifier = ">=1.30" },
-    { name = "pillow", specifier = ">=10.1" },
     { name = "plotly", marker = "extra == 'analysis'", specifier = ">=5.0" },
     { name = "pygame", specifier = ">=2.6" },
 ]
 provides-extras = ["analysis", "agent"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8" }]
+
+[[package]]
+name = "membrane-rl"
+version = "0.1.0"
+source = { editable = "membrane-rl" }
+dependencies = [
+    { name = "imageio-ffmpeg" },
+    { name = "numpy" },
+    { name = "pillow" },
+]
+
+[package.optional-dependencies]
+agent = [
+    { name = "openai" },
+]
+dev = [
+    { name = "pytest" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "imageio-ffmpeg", specifier = ">=0.5" },
+    { name = "numpy", specifier = ">=1.26" },
+    { name = "openai", marker = "extra == 'agent'", specifier = ">=1.30" },
+    { name = "pillow", specifier = ">=10.1" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
+]
+provides-extras = ["agent", "dev"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8" }]

@@ -7,13 +7,10 @@ generated afterwards is suspect.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 
 import numpy as np
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from membrane_rl.physics import MembraneSim, Params, State  # noqa: E402
 from membrane_rl.rewards import RewardConfig, compute_reward, parse_prediction  # noqa: E402

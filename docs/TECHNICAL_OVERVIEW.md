@@ -6,7 +6,8 @@ Membrane Breakout 3D is a small physics/gameplay project that demonstrates a bal
 
 - `game_web/` contains the primary interactive browser experience using Three.js.
 - `game_python/` contains a local Pygame prototype with the same core simulation ideas.
-- `verify_energy.py` and `verify_physics_stage5.py` are command-line checks for energy behavior and simulation stability.
+- `verify_energy.py` and `verify_physics_stage5.py` are command-line checks for energy behavior and simulation stability. `verify_energy.py` runs the shared implementation in `membrane-rl/membrane_rl/physics.py`; `verify_physics_stage5.py` is a separate experiment with its own loop.
+- `membrane-rl/` is a pip-installable package (`membrane_rl`) with evaluation tooling built on the same physics (see below).
 - `physics_presentation.html` is a presentation artifact explaining the model and visuals.
 
 ## Membrane Model
@@ -47,6 +48,17 @@ The Python prototype mirrors the core gameplay loop in Pygame and is useful for 
 uv run python game_python/game.py
 ```
 
+## Evaluation tooling (membrane-rl)
+
+`membrane-rl/` reuses the physics to build evaluation tools for AI models. `membrane_rl/physics.py` is the repo's reference implementation and the only one used for labels:
+
+- A verifiable-reward environment for vision-language models: rendered frames with the exact future ball position as ground truth.
+- A video test bench: clips with an exact, timestamped answer key (membrane, rim and wall contacts plus five injected impossible-physics anomalies), a scorer, and a pixel-tracker baseline.
+- A physics twin that recovers the 3D ball position from pixels and keeps a simulator in lock-step. On 30 held-out clips its 1 s forecast has a median error of 0.11 ball radii (gravity-only: 9.2), and it catches all 5 anomaly kinds with 0 false alarms.
+- A VLM agent client for OpenAI-compatible endpoints.
+
+Install with `uv sync` inside this repo, or `pip install "git+https://github.com/yugt/membrane-ball#subdirectory=membrane-rl"` elsewhere (extra `[agent]` adds the client). The command-line scripts are not part of the installed package; they live in `membrane-rl/scripts/` and run as `uv run python membrane-rl/scripts/<script>.py`. See `membrane-rl/README.md`.
+
 ## Verification
 
 The repository includes a smoke-test script:
@@ -55,11 +67,11 @@ The repository includes a smoke-test script:
 ./scripts/verify.sh
 ```
 
-It compiles the Python files and runs the two main numerical verification scripts. The current verification checks are not formal proofs, but they provide quick reproducibility signals for an evaluator.
+It runs four steps: a Python syntax check, `verify_energy.py` (which uses the shared physics; expected output 3.232784 % drift, 117 wall / 34 rim bounces), `verify_physics_stage5.py` (a separate experiment; it now fails above 5 % drift), and the 46 `membrane-rl` tests. The current verification checks are not formal proofs, but they provide quick reproducibility signals for an evaluator.
 
 ## Known Limitations
 
-- The Python and web implementations duplicate similar physics logic instead of sharing one source of truth.
+- The browser game and the Pygame prototype keep their own copies of the physics logic; `membrane-rl/membrane_rl/physics.py` is the reference implementation (used by `verify_energy.py` and all evaluation tooling).
 - The visual membrane model is designed for real-time interaction and is not a full finite-element solver.
 - Generated HTML artifacts are kept for presentation/reference and are not part of the core runtime.
 - The browser version depends on Three.js from a CDN, so internet access is required unless the dependency is vendored.

@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "membrane-rl"
+version = "0.1.0"
+description = "Physics, rendering, scoring, physics twin and VLM agent client for the membrane-ball video-understanding task."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.26",
+    "pillow>=10.1",
+    "imageio-ffmpeg>=0.5",
+]
+
+[project.optional-dependencies]
+agent = ["openai>=1.30"]
+dev = ["pytest>=8"]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.setuptools]
+packages = ["membrane_rl"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
