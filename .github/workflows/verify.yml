@@ -25,7 +25,7 @@ jobs:
           enable-cache: true
 
       - name: Install Python
-        run: uv python install
+        run: uv python install 3.12
 
       - name: Sync dependencies (fails if uv.lock is stale)
         run: uv sync --locked

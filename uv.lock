@@ -2,6 +2,12 @@ version = 1
 revision = 3
 requires-python = ">=3.12"
 
+[manifest]
+members = [
+    "membrane-breakout-3d",
+    "membrane-rl",
+]
+
 [[package]]
 name = "annotated-types"
 version = "0.8.0"
@@ -258,6 +264,14 @@ dependencies = [
 agent = [
     { name = "openai" },
 ]
+dev = [
+    { name = "pytest" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -268,6 +282,9 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
 ]
 provides-extras = ["agent", "dev"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8" }]
 
 [[package]]
 name = "narwhals"

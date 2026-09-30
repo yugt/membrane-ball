@@ -26,5 +26,8 @@ dev = [
 [tool.uv]
 package = false
 
+[tool.uv.workspace]
+members = ["membrane-rl"]
+
 [tool.uv.sources]
-membrane-rl = { path = "membrane-rl", editable = true }
+membrane-rl = { workspace = true }

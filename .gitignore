@@ -17,3 +17,8 @@ membrane-ball-wrong.html
 clips/
 *.mp4
 *.pred.json
+
+# Python packaging build output
+*.egg-info/
+build/
+dist/
