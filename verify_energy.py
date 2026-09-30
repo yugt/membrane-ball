@@ -6,11 +6,9 @@ mechanical energy, sampled at the end of each rendered frame, stays within 5 %
 of its initial value.
 """
 import sys
-from pathlib import Path
 
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parent / "membrane-rl"))
 from membrane_rl.physics import MembraneSim, Params, State  # noqa: E402
 
 FRAMES = 5000

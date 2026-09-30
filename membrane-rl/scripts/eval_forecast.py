@@ -20,7 +20,6 @@ from pathlib import Path
 
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from membrane_rl.dataset import naive_ballistic  # noqa: E402
 from membrane_rl.tracker import read_mp4  # noqa: E402

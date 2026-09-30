@@ -7,8 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "numpy>=2.0",
     "pygame>=2.6",
-    "pillow>=10.1",
-    "imageio-ffmpeg>=0.5",
+    "membrane-rl",
 ]
 
 [project.optional-dependencies]
@@ -16,7 +15,7 @@ analysis = [
     "plotly>=5.0",
 ]
 agent = [
-    "openai>=1.30",
+    "membrane-rl[agent]",
 ]
 
 [dependency-groups]
@@ -26,3 +25,6 @@ dev = [
 
 [tool.uv]
 package = false
+
+[tool.uv.sources]
+membrane-rl = { path = "membrane-rl", editable = true }

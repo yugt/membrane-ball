@@ -20,6 +20,6 @@ echo "[3/4] Stage 5 physics verification"
 uv run python verify_physics_stage5.py
 
 echo "[4/4] membrane-rl test suite"
-(cd membrane-rl && uv run --project .. python -m pytest -q tests/)
+uv run python -m pytest -q membrane-rl/tests/
 
 echo "Verification complete."
