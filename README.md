@@ -63,6 +63,25 @@ uv run python verify_energy.py
 uv run python verify_physics_stage5.py
 ```
 
+## Research: `membrane-rl`
+
+[`membrane-rl/`](membrane-rl/) turns the same physics into tools for evaluating
+AI models, using a single shared implementation of the dynamics
+(`membrane-rl/membrane_rl/physics.py`) that `verify_energy.py` also runs:
+
+- **Verifiable-reward environment:** rendered frames plus the exact future ball
+  position as ground truth, for training and probing vision-language models.
+- **Video test bench:** clips with an exact, timestamped answer key (membrane,
+  rim and wall hits, plus five injected physically impossible events), a scorer,
+  and a pixel-tracker baseline.
+- **Physics twin:** recovers the ball's 3D position from pixels and keeps a
+  simulator in step with the video. On 30 held-out clips it predicts the ball
+  1 s ahead with a median error of 0.11 ball radii (gravity-only: 9.2) and
+  flags all five anomaly types with no false alarms.
+
+See [`membrane-rl/README.md`](membrane-rl/README.md) and
+[`membrane-rl/HACKATHON_RUNBOOK.md`](membrane-rl/HACKATHON_RUNBOOK.md).
+
 ## Physics Model Overview
 
 The game models a ball interacting with a clamped circular membrane. For interview review, the key idea is that the ball, gravity, and membrane are treated as one coupled mechanical system.
@@ -136,7 +155,7 @@ The browser game uses restitution $e = 0.95$ for game feel, while verification s
 ## Repository Structure
 
 ```text
-Membrane/
+membrane-ball/
 ├── game_web/                 # Main Three.js browser implementation
 │   ├── index.html
 │   ├── style.css
@@ -150,6 +169,10 @@ Membrane/
 │   └── TECHNICAL_OVERVIEW.md # Evaluator-focused implementation overview
 ├── scripts/
 │   └── verify.sh             # Syntax and physics smoke checks
+├── membrane-rl/              # Verifiable-reward env, video test bench, physics twin
+│   ├── membrane_rl/          # physics (single source), rendering, scoring, twin
+│   ├── scripts/              # clip generation, evaluation, agent runner
+│   └── tests/
 ├── verify_energy.py          # Energy conservation verification
 ├── verify_physics_stage5.py  # Additional physics verification scenario
 ├── record_and_analyze.py     # Plotly analysis/presentation generator
@@ -169,6 +192,7 @@ The simulation uses substepped symplectic Euler integration to keep the browser 
 - `game_web/game.js`: Three.js rendering, gameplay loop, contact forces, and live energy plot.
 - `game_python/physics.py`: compact Python membrane/ball model.
 - `verify_energy.py`: reproducible energy-conservation smoke check.
+- `membrane-rl/`: evaluation tooling built on the same physics (see above).
 - `docs/TECHNICAL_OVERVIEW.md`: technical summary and known limitations.
 
 ## Requirements
@@ -180,6 +204,6 @@ The simulation uses substepped symplectic Euler integration to keep the browser 
 
 ## Known Limitations
 
-- The Python and web versions duplicate similar physics logic instead of sharing a single source of truth.
+- The browser game (`game_web/game.js`) and the Pygame prototype (`game_python/physics.py`) still carry their own copies of the physics; `membrane-rl/membrane_rl/physics.py` is the reference implementation and `verify_energy.py` uses it. `verify_physics_stage5.py` is a separate experiment with its own loop.
 - The membrane is an interactive approximation, not a full finite-element simulation.
 - Some checked-in HTML files are generated/presentation artifacts rather than source code.

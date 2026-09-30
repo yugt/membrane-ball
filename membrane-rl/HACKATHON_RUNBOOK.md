@@ -20,8 +20,8 @@ slow path (Cosmos) explains and answers questions; the answer key scores both.
 
 ## What exists before the event (disclose this)
 
-Everything in `membrane-rl/` on branch `claude/laughing-noether-tpl7lw` of
-`yugt/membrane-ball`, committed before Oct 2:
+Everything in `membrane-rl/` of `yugt/membrane-ball`, committed before Oct 2
+(developed on branch `claude/laughing-noether-tpl7lw`, merged into `main`):
 
 | Piece | File | Status |
 |---|---|---|
@@ -44,7 +44,7 @@ segment, the demo itself.
 ## Setup on the event VM (5 min)
 
 ```bash
-git clone -b claude/laughing-noether-tpl7lw https://github.com/yugt/membrane-ball.git
+git clone https://github.com/yugt/membrane-ball.git
 cd membrane-ball/membrane-rl
 python3 -m venv .venv && . .venv/bin/activate      # or: uv venv && uv pip install -r requirements.txt
 pip install -r requirements.txt
