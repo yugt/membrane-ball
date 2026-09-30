@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 data/
 *.png
+clips/
+*.mp4
+.venv/
