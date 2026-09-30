@@ -144,6 +144,7 @@ scripts/
   eval_events.py     score oracle / tracker / agent predictions
   run_agent.py       run the VLM agent, write <clip>.pred.json
   eval_forecast.py   1 s forecast accuracy of the twin vs gravity-only
+  overlay_twin.py    render forecast path, alarms and twin labels over a clip
 tests/
   test_physics.py      energy, determinism, geometry, reward monotonicity
   test_video_agent.py  event log, anomalies, scoring, video I/O, agent parsing

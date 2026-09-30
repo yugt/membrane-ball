@@ -50,6 +50,9 @@ class TwinConfig:
     # mismatch. Near the rim the detector threshold is multiplied by this.
     rim_margin: float = 0.3       # extra distance (world units) that counts as "at the rim"
     rim_threshold_mult: float = 3.0
+    # Deeper than a live membrane ever lets the ball go (-0.18 over 200 random
+    # episodes), inside the rim: the model no longer describes the scene.
+    impossible_depth: float = -0.3
     warmup: int = 4               # frames used to initialise velocity
 
 
@@ -72,6 +75,7 @@ class PhysicsTwin:
         self.alarms: list[dict] = []
         self._run = 0
         self._last_alarm_t = -1e9
+        self.invalid = False                   # model known not to describe the scene
 
     # ------------------------------------------------------------------
     def _init_from_buffer(self) -> None:
@@ -94,6 +98,22 @@ class PhysicsTwin:
         self.frame += 1
         t = self.frame * self.dt
         have = obs is not None and np.isfinite(obs).all()
+
+        if have and self._impossible(obs):
+            # Below a membrane that should have stopped it. One alarm, then stop
+            # simulating: re-locking here would run the membrane solver far
+            # outside its domain and report imaginary contacts.
+            if not self.invalid and t - self._last_alarm_t > self.cfg.refractory_s:
+                alarm = {"t": round(t, 3), "label": "anomaly", "why": "below the membrane"}
+                self.alarms.append(alarm)
+                self._last_alarm_t = t
+            else:
+                alarm = None
+            self.invalid, self.locked = True, False
+            self._buf.clear()
+            self.innovation.append(np.nan)
+            self.score.append(float(np.linalg.norm(self.bias)))
+            return {"t": t, "locked": False, "alarm": alarm, "events": []}
 
         if not self.locked:
             if have:
@@ -138,12 +158,19 @@ class PhysicsTwin:
                 self.sim.state.pos += self.cfg.alpha * r
                 self.sim.state.vel += (self.cfg.beta / self.dt) * r
         else:
+            # Coasting on the model alone: whatever the twin "sees" happen now is
+            # its own imagination, not an observation -- don't report it.
+            del self.sim.events[n_events:]
             self.innovation.append(np.nan)
             self.score.append(float(np.linalg.norm(self.bias)))
 
         new = self.sim.events[n_events:]
         return {"t": t, "locked": self.locked, "alarm": alarm, "events": new,
                 "pos": self.sim.state.pos.copy()}
+
+    def _impossible(self, pos) -> bool:
+        dx, dy = pos[0] - self.sim.frame_center[0], pos[1] - self.sim.frame_center[1]
+        return pos[2] < self.cfg.impossible_depth and np.hypot(dx, dy) <= self.params.r_frame
 
     def _near_rim(self, pos) -> bool:
         """Is the ball within reach of the rigid rim (a torus at z = 0)?"""
