@@ -1,3 +1,19 @@
+"""Stage-5 isolation test (rigid ring disabled, tight cylinder R=0.6).
+
+This script deliberately keeps its OWN integration loop and does NOT use
+``membrane_rl.physics.MembraneSim``. It is a different experiment, not a copy of
+the reference dynamics. Differences: a coarser contact solver (6 Newton
+iterations, r_c clamped to [1e-4, 0.96 R], tolerance 1e-5, ``max(1e-4, ...)``
+guards); forces applied AFTER the position update / collisions (gravity kick,
+drift, collide, then membrane kick); a cylinder of radius 0.6; ring collisions
+disabled; one "step" is a single substep (5000 substeps) with the energy checked
+after every one. MembraneSim cannot reproduce these numbers, so forcing a port
+would change the results. The energy-conserving reference is verify_energy.py.
+
+Exit code: 1 if the relative energy leak exceeds 5 %, else 0.
+"""
+import sys
+
 import numpy as np
 
 class MembranePhysics:
@@ -155,7 +171,11 @@ def run_test():
     print(f"Rigid Ring Bounces: {ring_bounces}")
     print(f"Membrane Stretches: {membrane_contacts}")
     print(f"Maximum Energy Deviation: {max_dev:.8f} J")
-    print(f"Relative Energy Leak: {(max_dev / initial_energy) * 100:.6f}%")
+    rel_leak = (max_dev / initial_energy) * 100.0
+    print(f"Relative Energy Leak: {rel_leak:.6f}%")
+    if rel_leak > 5.0:
+        print("Verification FAILURE: energy leak exceeds 5.0% threshold!")
+        sys.exit(1)
 
 if __name__ == "__main__":
     run_test()
