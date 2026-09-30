@@ -7,11 +7,21 @@ requires-python = ">=3.12"
 dependencies = [
     "numpy>=2.0",
     "pygame>=2.6",
+    "pillow>=10.1",
+    "imageio-ffmpeg>=0.5",
 ]
 
 [project.optional-dependencies]
 analysis = [
     "plotly>=5.0",
+]
+agent = [
+    "openai>=1.30",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
 ]
 
 [tool.uv]

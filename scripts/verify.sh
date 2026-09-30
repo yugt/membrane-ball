@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-echo "[1/3] Python syntax check"
+echo "[1/4] Python syntax check"
 uv run python -m py_compile \
   game_python/game.py \
   game_python/physics.py \
@@ -13,10 +13,13 @@ uv run python -m py_compile \
   verify_physics_stage5.py \
   record_and_analyze.py
 
-echo "[2/3] Energy conservation verification"
+echo "[2/4] Energy conservation verification"
 uv run python verify_energy.py
 
-echo "[3/3] Stage 5 physics verification"
+echo "[3/4] Stage 5 physics verification"
 uv run python verify_physics_stage5.py
+
+echo "[4/4] membrane-rl test suite"
+(cd membrane-rl && uv run --project .. python -m pytest -q tests/)
 
 echo "Verification complete."

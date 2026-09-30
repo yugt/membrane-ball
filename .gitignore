@@ -12,3 +12,8 @@ artifacts/
 bounce_metrics.html
 membrane-ball.html
 membrane-ball-wrong.html
+
+# Generated video clips and VLM predictions
+clips/
+*.mp4
+*.pred.json
