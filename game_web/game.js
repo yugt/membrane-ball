@@ -553,14 +553,17 @@ function animate(time) {
 
             // 5. Rigid Circular Frame Ring (R_frame = 1.0) with clamping
             const RFrame = 1.0;
-            ballR = Math.sqrt(ball.pos.x * ball.pos.x + ball.pos.y * ball.pos.y);
+            // Ring is centered on the paddle frame (px, py), not the world origin
+            let rxRel = ball.pos.x - px;
+            let ryRel = ball.pos.y - py;
+            let rRel = Math.sqrt(rxRel * rxRel + ryRel * ryRel);
             let pClosestX = 0.0, pClosestY = 0.0;
-            if (ballR > 1e-6) {
-                pClosestX = RFrame * (ball.pos.x / ballR);
-                pClosestY = RFrame * (ball.pos.y / ballR);
+            if (rRel > 1e-6) {
+                pClosestX = px + RFrame * (rxRel / rRel);
+                pClosestY = py + RFrame * (ryRel / rRel);
             } else {
-                pClosestX = RFrame;
-                pClosestY = 0.0;
+                pClosestX = px + RFrame;
+                pClosestY = py;
             }
 
             let dx = ball.pos.x - pClosestX;

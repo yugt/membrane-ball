@@ -355,13 +355,16 @@ def main():
                     
                 # 5. Rigid Circular Frame Ring (R_frame = 1.0) with clamping
                 R_frame = 1.0
-                ball_r = np.sqrt(ball.pos[0]**2 + ball.pos[1]**2)
-                if ball_r > 1e-6:
-                    p_closest_x = R_frame * (ball.pos[0] / ball_r)
-                    p_closest_y = R_frame * (ball.pos[1] / ball_r)
+                # Ring is centered on the paddle frame (px, py), not the world origin
+                rx_rel = ball.pos[0] - px
+                ry_rel = ball.pos[1] - py
+                r_rel = np.sqrt(rx_rel**2 + ry_rel**2)
+                if r_rel > 1e-6:
+                    p_closest_x = px + R_frame * (rx_rel / r_rel)
+                    p_closest_y = py + R_frame * (ry_rel / r_rel)
                 else:
-                    p_closest_x = R_frame
-                    p_closest_y = 0.0
+                    p_closest_x = px + R_frame
+                    p_closest_y = py
                     
                 dx = ball.pos[0] - p_closest_x
                 dy = ball.pos[1] - p_closest_y
