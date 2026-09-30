@@ -20,12 +20,13 @@ slow path (Cosmos) explains and answers questions; the answer key scores both.
 
 ## What exists before the event (disclose this)
 
-Everything in `membrane-rl/` of `yugt/membrane-ball`, committed before Oct 2
-(developed on branch `claude/laughing-noether-tpl7lw`, merged into `main`):
+The new repo depends on the published `membrane-rl` package from
+`yugt/membrane-ball` (everything in `membrane-rl/`, committed before Oct 2 and
+merged into `main` in PR #1; developed on branch `claude/laughing-noether-tpl7lw`):
 
 | Piece | File | Status |
 |---|---|---|
-| Physics with ground-truth event log | `membrane_rl/physics.py` | done, parity-pinned to upstream |
+| Physics with ground-truth event log | `membrane_rl/physics.py` | done, parity-pinned to the repo's original `verify_energy.py` |
 | 5 injected anomalies | `membrane_rl/anomalies.py` | done |
 | Clip + answer-key generator | `membrane_rl/video.py`, `scripts/gen_clips.py` | done, ~4 s/clip at 720 px |
 | Scorer (P/R/F1, anomaly latency) | `membrane_rl/scoring.py`, `scripts/eval_events.py` | done |
@@ -43,11 +44,23 @@ segment, the demo itself.
 
 ## Setup on the event VM (5 min)
 
+In the fresh event repo, install the package (add `[agent]` for the VLM client):
+
+```bash
+python3 -m venv .venv && . .venv/bin/activate      # or: uv venv (then `uv pip install ...`)
+pip install "git+https://github.com/yugt/membrane-ball#subdirectory=membrane-rl"
+pip install "membrane-rl[agent] @ git+https://github.com/yugt/membrane-ball#subdirectory=membrane-rl"   # with openai
+python -c "import membrane_rl"                     # sanity check
+```
+
+The scripts are not part of the installed package. Get them from the source repo
+and run them from `membrane-rl/scripts/` (or copy the ones you need into the new
+repo):
+
 ```bash
 git clone https://github.com/yugt/membrane-ball.git
 cd membrane-ball/membrane-rl
-python3 -m venv .venv && . .venv/bin/activate      # or: uv venv && uv pip install -r requirements.txt
-pip install -r requirements.txt
+pip install -e ".[dev,agent]"                      # or, inside the clone: `uv sync` and prefix commands with `uv run`
 python -m pytest -q tests/                         # expect 46 passed
 python scripts/gen_clips.py --n 20 --out clips/ --annotated
 python scripts/eval_events.py --clips clips/ --detector oracle    # must be all 1.0
@@ -56,9 +69,11 @@ python scripts/eval_events.py --clips clips/ --detector twin      # fast path
 python scripts/eval_forecast.py --clips clips/                    # 1 s forecast accuracy
 ```
 
-If `pip` is missing on the VM: `python3 -m ensurepip` or use `uv`. If the VM has
-no internet to PyPI, everything except the agent needs only
-`numpy pillow imageio-ffmpeg`.
+If `pip` is missing on the VM: `python3 -m ensurepip` or use `uv`. The
+`git+https` install needs GitHub access as well as PyPI; with no internet at all,
+everything except the agent needs only `numpy pillow imageio-ffmpeg` (copy the
+repo over and install it with `pip install -e membrane-rl`, or put `membrane-rl/`
+on `PYTHONPATH`).
 
 ## Numbers to beat (30 held-out clips, seed 7, 6 s each, tol 0.3 s)
 
