@@ -73,7 +73,7 @@ Thresholds were set on a different 20-clip set; these clips were not used for tu
 | false alarms on normal clips | 0 % | 0 % |
 | where is the ball in 1 s — median error | — | **0.12 ball radii** (gravity-only: 9.2) |
 | … with a membrane bounce inside that second | — | **0.13** (gravity-only: 11.4) |
-| cost per frame | ~3 ms | ~1.3 ms + 7 ms per forecast |
+| cost per frame | ~4 ms | ~1.3 ms + 7 ms per forecast |
 
 Honest caveats for Q&A: the twin knows the physical constants (same
 simulator); everything about the episode — rim position, ball state — comes
