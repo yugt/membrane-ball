@@ -121,6 +121,18 @@ class MembraneSim:
         self.n_ring_bounces = 0
         self.n_contact_frames = 0
 
+        # Runtime multipliers used ONLY to inject physically impossible
+        # segments (see anomalies.py). At 1.0 they are exact no-ops in IEEE
+        # arithmetic, so the upstream parity test still pins the dynamics.
+        self.gravity_scale = 1.0
+        self.membrane_scale = 1.0
+
+        # Timestamped ground-truth event log. ``frame`` is the index of the
+        # first rendered frame that shows the event (frame 0 = state at reset).
+        self.frame = 0
+        self.events: list[dict] = []
+        self._was_contact = False
+
     # ------------------------------------------------------------------
     # membrane geometry
     # ------------------------------------------------------------------
@@ -174,7 +186,7 @@ class MembraneSim:
 
         dx, dy = self._rel_xy(s.pos)
         r_b2 = dx * dx + dy * dy
-        if np.sqrt(r_b2) <= 1.0:
+        if np.sqrt(r_b2) <= 1.0 and self.membrane_scale > 0.0:
             pe_elastic = self.elastic_energy_centered(float(s.pos[2])) / (1.0 - r_b2)
         else:
             pe_elastic = 0.0
@@ -231,6 +243,11 @@ class MembraneSim:
         self.n_cyl_bounces = 0
         self.n_ring_bounces = 0
         self.n_contact_frames = 0
+        self.gravity_scale = 1.0
+        self.membrane_scale = 1.0
+        self.frame = 0
+        self.events = []
+        self._was_contact = False
         return self.state.copy()
 
     # ------------------------------------------------------------------
@@ -243,8 +260,10 @@ class MembraneSim:
         vel = self.state.vel
         sub_dt = p.sub_dt()
         in_contact = False
+        self.frame += 1
 
-        for _ in range(p.substeps):
+        for k in range(p.substeps):
+            self._t = (self.frame - 1 + (k + 1) / p.substeps) * p.dt
             dx, dy = self._rel_xy(pos)
             r_b2 = dx * dx + dy * dy
             r_b = np.sqrt(r_b2)
@@ -252,13 +271,17 @@ class MembraneSim:
             ue_centered = self._elastic_from_rc(r_c)
 
             fz_centered = 0.0
+            contact_now = r_b <= 1.0 and r_c > 0.0 and self.membrane_scale > 0.0
+            if contact_now != self._was_contact:
+                self._emit("contact_start" if contact_now else "contact_end", pos)
+                self._was_contact = contact_now
             if r_b <= 1.0 and r_c > 0.0:
-                in_contact = True
+                in_contact = in_contact or contact_now
                 S = np.sqrt(max(1e-15, p.ball_radius**2 - r_c**2))
                 fz_centered = 2.0 * np.pi * p.tension * (r_c**2) / S
 
             factor = 1.0 / (1.0 - r_b2) if r_b < 1.0 else 1.0
-            force_z = fz_centered * factor
+            force_z = fz_centered * factor * self.membrane_scale
 
             # Lateral restoring force points toward the frame centre; it is the
             # gradient of the off-centre stiffening term, so it must be taken
@@ -266,14 +289,17 @@ class MembraneSim:
             force_x = force_y = 0.0
             if r_b < 1.0 and ue_centered > 0.0:
                 denom = (1.0 - r_b2) ** 2
-                force_x = -(2.0 * dx / denom) * ue_centered
-                force_y = -(2.0 * dy / denom) * ue_centered
+                force_x = -(2.0 * dx / denom) * ue_centered * self.membrane_scale
+                force_y = -(2.0 * dy / denom) * ue_centered * self.membrane_scale
 
             # symplectic Euler: velocity first, then position with the new velocity
             vel[0] += (force_x / p.ball_mass) * sub_dt
             vel[1] += (force_y / p.ball_mass) * sub_dt
-            vel[2] += (-p.gravity + force_z / p.ball_mass) * sub_dt
+            vz_before = vel[2]
+            vel[2] += (-p.gravity * self.gravity_scale + force_z / p.ball_mass) * sub_dt
             pos += vel * sub_dt
+            if vz_before > 0.0 >= vel[2] and not contact_now:
+                self._emit("apex", pos)
 
             self._bounce_cylinder(pos, vel)
             self._bounce_ring(pos, vel)
@@ -294,6 +320,7 @@ class MembraneSim:
                 vel[0] -= 2.0 * v_dot_n * nx
                 vel[1] -= 2.0 * v_dot_n * ny
                 self.n_cyl_bounces += 1
+                self._emit("wall_bounce", pos)
                 pos[0] = limit * nx
                 pos[1] = limit * ny
 
@@ -319,6 +346,7 @@ class MembraneSim:
                 vel[1] -= 2.0 * v_dot * ny
                 vel[2] -= 2.0 * v_dot * nz
                 self.n_ring_bounces += 1
+                self._emit("ring_bounce", pos)
             pos[0] = cx + p.ball_radius * nx
             pos[1] = cy + p.ball_radius * ny
             pos[2] = p.ball_radius * nz
@@ -326,6 +354,24 @@ class MembraneSim:
     # ------------------------------------------------------------------
     # helpers
     # ------------------------------------------------------------------
+    def _emit(self, etype: str, pos, at_frame: int | None = None, **extra) -> None:
+        """Append a ground-truth event at the current substep time.
+
+        ``at_frame`` is for events injected between steps (anomalies), which
+        take effect exactly at a frame boundary.
+        """
+        if at_frame is None:
+            frame, t = self.frame, getattr(self, "_t", self.frame * self.p.dt)
+        else:
+            frame, t = at_frame, at_frame * self.p.dt
+        self.events.append({
+            "frame": frame,
+            "t": round(float(t), 5),
+            "type": etype,
+            "pos": [round(float(v), 4) for v in pos],
+            **extra,
+        })
+
     def rollout(self, n_frames: int) -> list[State]:
         """Advance ``n_frames`` and return the state after each one."""
         return [self.step() for _ in range(n_frames)]
@@ -352,7 +398,7 @@ class MembraneSim:
 
         wx, wy = nx + fx, ny + fy                        # world coordinates
 
-        r_c = self.solve_contact_radius(z_b) if r_b <= 1.0 else 0.0
+        r_c = self.solve_contact_radius(z_b) if (r_b <= 1.0 and self.membrane_scale > 0.0) else 0.0
         if r_c <= 0.0:
             u[outside] = np.nan
             return wx, wy, u

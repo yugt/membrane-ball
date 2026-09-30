@@ -36,6 +36,20 @@ class RenderConfig:
     c_mem_slack: tuple[int, int, int] = (0, 104, 158)
     c_mem_taut: tuple[int, int, int] = (208, 44, 86)
 
+    @classmethod
+    def for_size(cls, size: int, **overrides) -> "RenderConfig":
+        """Same framing at a different resolution (e.g. 720 for demo video).
+
+        320 px stays the default for training data -- vision tokens scale with
+        pixels -- but a demo video for humans needs to be bigger.
+
+        The camera is also pulled back a little so the whole cylinder
+        (z = -1 .. 4.8) fits: in video the ball does leave the default crop,
+        e.g. when it falls through a switched-off membrane.
+        """
+        k = size / 320.0
+        return cls(size=size, scale=52.0 * k, y_offset=57.0 * k, **overrides)
+
 
 class Renderer:
     def __init__(self, cfg: RenderConfig | None = None):
@@ -44,6 +58,9 @@ class Renderer:
         t = np.deg2rad(self.cfg.tilt_deg)
         self._cos_r, self._sin_r = np.cos(r), np.sin(r)
         self._cos_t, self._sin_t = np.cos(t), np.sin(t)
+        k = self.cfg.size / 320.0
+        self._w1 = max(1, round(k))
+        self._w2 = max(2, round(2 * k))
 
     def project(self, x, y, z):
         """Isometric projection matching the upstream game camera."""
@@ -95,20 +112,20 @@ class Renderer:
         p = sim.p
         # a few horizontal rings give depth cues without costing pixels
         for z in (0.0, 1.6, 3.2, 4.8):
-            d.line(self._ring_points(p.r_cyl, z), fill=self.cfg.c_wall, width=1)
+            d.line(self._ring_points(p.r_cyl, z), fill=self.cfg.c_wall, width=self._w1)
         for a in np.linspace(0, 2 * np.pi, 8, endpoint=False):
             x, y = p.r_cyl * np.cos(a), p.r_cyl * np.sin(a)
             d.line([self.project(x, y, 0.0), self.project(x, y, 4.8)],
-                   fill=self.cfg.c_wall, width=1)
+                   fill=self.cfg.c_wall, width=self._w1)
 
     def _draw_height_axis(self, d: ImageDraw.ImageDraw, sim: MembraneSim) -> None:
         """Vertical ruler on the cylinder axis: gives z an absolute reference."""
         col = (74, 82, 104)
-        d.line([self.project(0, 0, 0.0), self.project(0, 0, 5.0)], fill=col, width=1)
+        d.line([self.project(0, 0, 0.0), self.project(0, 0, 5.0)], fill=col, width=self._w1)
         for z in range(0, 6):
             x0, y0 = self.project(0, 0, float(z))
             w = 7 if z % 2 == 0 else 4
-            d.line([(x0 - w, y0), (x0 + w, y0)], fill=col, width=1)
+            d.line([(x0 - w, y0), (x0 + w, y0)], fill=col, width=self._w1)
 
     def _draw_shadow(self, d: ImageDraw.ImageDraw, sim: MembraneSim) -> None:
         """Ellipse at z = 0 directly under the ball -- reads out (x, y)."""
@@ -116,14 +133,14 @@ class Renderer:
         cx, cy = self.project(x, y, 0.0)
         rx = sim.p.ball_radius * self.cfg.scale * 0.9
         ry = rx * self._cos_t
-        d.ellipse([cx - rx, cy - ry, cx + rx, cy + ry], outline=(255, 150, 40), width=2)
+        d.ellipse([cx - rx, cy - ry, cx + rx, cy + ry], outline=(255, 150, 40), width=self._w2)
 
     def _draw_drop_line(self, d: ImageDraw.ImageDraw, sim: MembraneSim) -> None:
         """Dashed vertical from the ball to its shadow -- reads out z."""
         x, y, z = sim.state.pos
         top = self.project(x, y, z - sim.p.ball_radius)
         bot = self.project(x, y, 0.0)
-        n = max(2, int(abs(bot[1] - top[1]) / 7))
+        n = max(2, int(abs(bot[1] - top[1]) / (7 * self._w1)))
         for i in range(n):
             if i % 2:
                 continue
@@ -134,12 +151,12 @@ class Renderer:
                     (top[0] + (bot[0] - top[0]) * t1, top[1] + (bot[1] - top[1]) * t1),
                 ],
                 fill=(255, 150, 40),
-                width=1,
+                width=self._w1,
             )
 
     def _draw_segments(self, d: ImageDraw.ImageDraw, segs) -> None:
         for pts, col in segs:
-            d.line(pts, fill=col, width=1)
+            d.line(pts, fill=col, width=self._w1)
 
     def _membrane_segments(self, sim: MembraneSim):
         """Membrane mesh split into segments behind and in front of the ball."""
@@ -188,7 +205,7 @@ class Renderer:
         d.line(
             self._ring_points(sim.p.r_frame, 0.0, cx=fx, cy=fy),
             fill=self.cfg.c_frame,
-            width=2,
+            width=self._w2,
         )
 
     def _draw_ball(self, d: ImageDraw.ImageDraw, sim: MembraneSim) -> None:
