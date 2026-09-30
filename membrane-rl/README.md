@@ -148,7 +148,7 @@ tests/
 
 ```bash
 pip install -r requirements.txt
-python3 -m pytest -q tests/                       # 39 tests, ~12 s
+python3 -m pytest -q tests/                       # 40 tests, ~12 s
 python3 scripts/gen_dataset.py --train 2000 --test 300 --horizon 25
 python3 scripts/baseline_probe.py --backend oracle --split test   # upper bound
 python3 scripts/baseline_probe.py --backend naive  --split test --horizon 25

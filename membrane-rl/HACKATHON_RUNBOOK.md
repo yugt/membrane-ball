@@ -17,8 +17,8 @@ Everything in `membrane-rl/` on branch `claude/laughing-noether-tpl7lw` of
 | Clip + answer-key generator | `membrane_rl/video.py`, `scripts/gen_clips.py` | done, ~4 s/clip at 720 px |
 | Scorer (P/R/F1, anomaly latency) | `membrane_rl/scoring.py`, `scripts/eval_events.py` | done |
 | Pixel-tracker baseline | `membrane_rl/tracker.py` | done |
-| VLM agent client (OpenAI-compatible) | `membrane_rl/agent.py`, `scripts/run_agent.py` | done offline; **never called a real model** |
-| Tests | `tests/` | 39 passing |
+| VLM agent client (W&B / NVIDIA / local / any OpenAI-compatible) | `membrane_rl/agent.py`, `scripts/run_agent.py` | done offline; **never called a real model** |
+| Tests | `tests/` | 40 passing |
 
 **Build on the day** (new commits, dated Oct 2): real model integration and
 prompt tuning, a live/streaming UI, the scoreboard (W&B), search over events,
@@ -31,7 +31,7 @@ git clone -b claude/laughing-noether-tpl7lw https://github.com/yugt/membrane-bal
 cd membrane-ball/membrane-rl
 python3 -m venv .venv && . .venv/bin/activate      # or: uv venv && uv pip install -r requirements.txt
 pip install -r requirements.txt
-python -m pytest -q tests/                         # expect 39 passed
+python -m pytest -q tests/                         # expect 40 passed
 python scripts/gen_clips.py --n 20 --out clips/ --annotated
 python scripts/eval_events.py --clips clips/ --detector oracle    # must be all 1.0
 python scripts/eval_events.py --clips clips/ --detector tracker   # baseline numbers below
@@ -75,19 +75,31 @@ truth table.
 
 ## Model smoke test (the one thing not verified yet)
 
+The agent speaks the OpenAI chat protocol, so the model is a flag:
+
+| `--provider` | Endpoint | Key env | Default model | Notes |
+|---|---|---|---|---|
+| `wandb` | `api.inference.wandb.ai/v1` | `WANDB_API_KEY` | `Qwen/Qwen3.8-27B` | event sponsor; multimodal Qwen takes images. `--project entity/project` for usage tracking |
+| `nvidia` | `integrate.api.nvidia.com/v1` | `NVIDIA_API_KEY` | none — pass `--model` | hosted `cosmos-reason1-7b` was **deprecated Mar 2026**; use the Cosmos Reason id the organisers give |
+| `local` | `localhost:8000/v1` | — | none | vLLM/SGLang you run on the event GPU |
+| `openai` | `--base-url` | `OPENAI_API_KEY` | none | any other OpenAI-compatible service |
+
+Plan: **Cosmos** (organiser endpoint) is the video-understanding model the
+judges expect to see; **W&B Qwen** is the fallback and the text LLM for the
+search/Q&A layer. Try both on 5 clips and put both rows in the results table —
+"which model catches which anomaly" is itself a finding.
+
 ```bash
-export NVIDIA_API_KEY=...   # from organisers / build.nvidia.com
-python scripts/run_agent.py --clips clips/ --limit 1 --dry-run         # payload sizes, no network
-python scripts/run_agent.py --clips clips/ --limit 1                    # frames mode (any VLM)
-python scripts/run_agent.py --clips clips/ --limit 1 --mode video       # if endpoint takes video
+python scripts/run_agent.py --clips clips/ --limit 1 --dry-run                 # payload sizes, no network
+python scripts/run_agent.py --clips clips/ --limit 1 --provider wandb          # frames mode
+python scripts/run_agent.py --clips clips/ --limit 1 --provider nvidia --model <id> --mode video
 python scripts/eval_events.py --clips clips/ --detector preds --limit 1
 ```
 
 Check, in this order, and write the answers down:
 
-1. **Model id** — default is `nvidia/cosmos-reason1-7b` at
-   `https://integrate.api.nvidia.com/v1`. The organisers may give a different
-   id, endpoint, or a VAST-hosted one. Pass `--model` / `--base-url`.
+1. **Model id / endpoint** — the organisers may serve Cosmos on CoreWeave behind
+   their own URL. Pass `--provider openai --base-url <url> --model <id>`.
 2. **Video input** — does the endpoint accept `video_url` content? If it errors,
    stay in `frames` mode (works with any vision chat model).
 3. **Latency per window** — the log prints it. Real-time needs < window hop

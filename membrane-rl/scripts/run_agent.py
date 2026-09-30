@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """Run the VLM event agent over clips and write ``<clip>.pred.json`` for scoring.
 
-    export NVIDIA_API_KEY=...        # or OPENAI_API_KEY, or a local vLLM server
     python scripts/run_agent.py --clips clips/ --limit 2 --dry-run   # inspect payload, no network
-    python scripts/run_agent.py --clips clips/ --limit 2
+
+    export WANDB_API_KEY=...
+    python scripts/run_agent.py --clips clips/ --limit 2 --provider wandb
+    python scripts/run_agent.py --clips clips/ --limit 2 --provider nvidia --model <cosmos id>
+    python scripts/run_agent.py --clips clips/ --limit 2 --provider local --model <served id>
+    OPENAI_API_KEY=... python scripts/run_agent.py --clips clips/ --provider openai \
+        --base-url https://.../v1 --model <id>
     python scripts/eval_events.py --clips clips/ --detector preds
 
 ``--dry-run`` builds every request and prints its size without sending, so the
@@ -14,7 +19,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 import time
@@ -22,8 +26,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from membrane_rl.agent import (AgentConfig, build_messages, call_model,  # noqa: E402
-                               merge_events, parse_events, windows)
+from membrane_rl.agent import (PROVIDERS, AgentConfig, build_messages,  # noqa: E402
+                               call_model, merge_events, parse_events,
+                               resolve_provider, windows)
 from membrane_rl.tracker import read_mp4  # noqa: E402
 
 
@@ -67,8 +72,10 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--clips", default="clips")
     ap.add_argument("--limit", type=int, default=0)
-    ap.add_argument("--model", default=AgentConfig.model)
-    ap.add_argument("--base-url", default=AgentConfig.base_url)
+    ap.add_argument("--provider", default="wandb", choices=sorted(PROVIDERS))
+    ap.add_argument("--model", default="", help="overrides the provider's default")
+    ap.add_argument("--base-url", default="", help="overrides the provider's default")
+    ap.add_argument("--project", default="", help="W&B Inference: <entity>/<project>")
     ap.add_argument("--mode", default="frames", choices=["frames", "video"])
     ap.add_argument("--window", type=float, default=AgentConfig.window_s)
     ap.add_argument("--hop", type=float, default=AgentConfig.hop_s)
@@ -76,11 +83,20 @@ def main() -> None:
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
-    api_key = os.environ.get("NVIDIA_API_KEY") or os.environ.get("OPENAI_API_KEY") or ""
-    cfg = AgentConfig(model=args.model, base_url=args.base_url, api_key=api_key, mode=args.mode,
-                      window_s=args.window, hop_s=args.hop, sample_fps=args.sample_fps)
-    if not api_key and not args.dry_run and "localhost" not in args.base_url:
-        raise SystemExit("set NVIDIA_API_KEY / OPENAI_API_KEY, or use --dry-run")
+    try:
+        base_url, model, api_key = resolve_provider(args.provider, args.model, args.base_url)
+    except ValueError as exc:
+        if not args.dry_run:
+            raise SystemExit(str(exc))
+        base_url, model, api_key = args.base_url or "(dry-run)", args.model or "(dry-run)", ""
+    cfg = AgentConfig(model=model, base_url=base_url, api_key=api_key, project=args.project,
+                      mode=args.mode, window_s=args.window, hop_s=args.hop,
+                      sample_fps=args.sample_fps)
+    key_env = PROVIDERS[args.provider]["key_env"]
+    if key_env and not api_key and not args.dry_run:
+        raise SystemExit(f"set {key_env} for provider {args.provider!r}, or use --dry-run")
+    print(f"provider={args.provider} model={model} base_url={base_url} mode={args.mode}",
+          file=sys.stderr)
 
     root = Path(args.clips)
     rows = [json.loads(l) for l in (root / "manifest.jsonl").read_text().splitlines() if l.strip()]

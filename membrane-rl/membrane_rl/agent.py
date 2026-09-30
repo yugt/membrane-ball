@@ -22,7 +22,7 @@ from dataclasses import dataclass
 import numpy as np
 from PIL import Image
 
-__all__ = ["AgentConfig", "SYSTEM_PROMPT", "windows", "build_messages", "parse_events", "merge_events"]
+__all__ = ["AgentConfig", "PROVIDERS", "resolve_provider", "SYSTEM_PROMPT", "windows", "build_messages", "parse_events", "merge_events"]
 
 SYSTEM_PROMPT = """You watch short clips from a physics simulation and report events.
 
@@ -46,11 +46,46 @@ Answer with JSON only, no prose:
 If nothing happens, answer {"events": []}."""
 
 
+# Every provider below speaks the OpenAI chat-completions protocol, so switching
+# is a flag, not a code change. Model ids are best guesses as of 2026-09-30 --
+# the event will hand out its own endpoints (Cosmos on CoreWeave via VAST);
+# confirm ids there and pass --model / --base-url.
+PROVIDERS: dict[str, dict] = {
+    # W&B Inference (CoreWeave). Multimodal Qwen models accept image input.
+    "wandb": {"base_url": "https://api.inference.wandb.ai/v1", "key_env": "WANDB_API_KEY",
+              "model": "Qwen/Qwen3.8-27B"},
+    # NVIDIA hosted API. The old cosmos-reason1-7b endpoint was deprecated in
+    # March 2026; use whatever Cosmos Reason id the organisers give you.
+    "nvidia": {"base_url": "https://integrate.api.nvidia.com/v1", "key_env": "NVIDIA_API_KEY",
+               "model": ""},
+    # A vLLM / SGLang server you started yourself (e.g. Cosmos Reason on the event GPU).
+    "local": {"base_url": "http://localhost:8000/v1", "key_env": "", "model": ""},
+    # Anything else OpenAI-compatible (DashScope, OpenRouter, a proxy): set --base-url.
+    "openai": {"base_url": "", "key_env": "OPENAI_API_KEY", "model": ""},
+}
+
+
+def resolve_provider(name: str, model: str = "", base_url: str = "", env=None) -> tuple[str, str, str]:
+    """Return ``(base_url, model, api_key)``; explicit arguments win over presets."""
+    import os
+    env = os.environ if env is None else env
+    preset = PROVIDERS[name]
+    base = base_url or preset["base_url"]
+    mdl = model or preset["model"]
+    key = env.get(preset["key_env"], "") if preset["key_env"] else ""
+    if not base:
+        raise ValueError(f"provider {name!r} needs --base-url")
+    if not mdl:
+        raise ValueError(f"provider {name!r} has no default model; pass --model")
+    return base, mdl, key
+
+
 @dataclass(frozen=True)
 class AgentConfig:
-    model: str = "nvidia/cosmos-reason1-7b"
-    base_url: str = "https://integrate.api.nvidia.com/v1"
+    model: str = PROVIDERS["wandb"]["model"]
+    base_url: str = PROVIDERS["wandb"]["base_url"]
     api_key: str = ""
+    project: str = ""             # W&B Inference: "<entity>/<project>" for usage tracking
     mode: str = "frames"          # "frames" | "video"
     window_s: float = 2.0
     hop_s: float = 1.5            # < window_s, so events at a boundary are seen twice
@@ -151,7 +186,8 @@ def merge_events(per_window: list[tuple[float, list[dict]]], dedup_s: float) -> 
 def call_model(messages: list[dict], cfg: AgentConfig) -> str:
     from openai import OpenAI
 
-    client = OpenAI(base_url=cfg.base_url, api_key=cfg.api_key or "EMPTY")
+    kw = {"project": cfg.project} if cfg.project else {}
+    client = OpenAI(base_url=cfg.base_url, api_key=cfg.api_key or "EMPTY", **kw)
     resp = client.chat.completions.create(
         model=cfg.model, messages=messages,
         temperature=cfg.temperature, max_tokens=cfg.max_tokens,

@@ -172,3 +172,15 @@ def test_build_messages_frames_mode():
     parts = msgs[1]["content"]
     assert sum(p["type"] == "image_url" for p in parts) == 3
     assert msgs[0]["role"] == "system"
+
+
+def test_resolve_provider_presets_and_overrides():
+    from membrane_rl.agent import resolve_provider
+    base, model, key = resolve_provider("wandb", env={"WANDB_API_KEY": "k"})
+    assert base.startswith("https://api.inference.wandb.ai") and model and key == "k"
+    assert resolve_provider("wandb", model="m", env={})[1] == "m"
+    with pytest.raises(ValueError):
+        resolve_provider("nvidia", env={})              # no default Cosmos id on purpose
+    with pytest.raises(ValueError):
+        resolve_provider("openai", model="m", env={})   # needs --base-url
+    assert resolve_provider("local", model="m", env={})[2] == ""
