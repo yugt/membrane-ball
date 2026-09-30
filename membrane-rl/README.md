@@ -116,6 +116,8 @@ instead of eyeballed. See [`HACKATHON_RUNBOOK.md`](HACKATHON_RUNBOOK.md).
 pip install -r requirements.txt
 python scripts/gen_clips.py --n 20 --out clips/ --annotated
 python scripts/eval_events.py --clips clips/ --detector tracker     # model-free baseline
+python scripts/eval_events.py --clips clips/ --detector twin        # physics twin (fast path)
+python scripts/eval_forecast.py --clips clips/                      # 1 s forecast accuracy
 python scripts/run_agent.py  --clips clips/ --limit 1 --dry-run     # VLM agent, no network
 ```
 
@@ -133,22 +135,26 @@ membrane_rl/
   scoring.py     event P/R/F1 and anomaly latency against the answer key
   tracker.py     model-free pixel baseline
   agent.py       VLM event agent over any OpenAI-compatible endpoint
+  perception.py  pixels -> 3D ball position and rim centre
+  twin.py        physics twin: 1 s forecast + anomaly alarm from innovation
 scripts/
   gen_dataset.py     train/test splits with disjoint frame-offset bands
   baseline_probe.py  zero-shot probe; oracle / naive / openai / hf backends
   gen_clips.py       video clips + answer keys
   eval_events.py     score oracle / tracker / agent predictions
   run_agent.py       run the VLM agent, write <clip>.pred.json
+  eval_forecast.py   1 s forecast accuracy of the twin vs gravity-only
 tests/
   test_physics.py      energy, determinism, geometry, reward monotonicity
   test_video_agent.py  event log, anomalies, scoring, video I/O, agent parsing
+  test_twin.py         camera inversion, perception accuracy, twin forecast + alarms
 ```
 
 ## Quick start
 
 ```bash
 pip install -r requirements.txt
-python3 -m pytest -q tests/                       # 40 tests, ~12 s
+python3 -m pytest -q tests/                       # 46 tests, ~10 s
 python3 scripts/gen_dataset.py --train 2000 --test 300 --horizon 25
 python3 scripts/baseline_probe.py --backend oracle --split test   # upper bound
 python3 scripts/baseline_probe.py --backend naive  --split test --horizon 25

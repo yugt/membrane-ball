@@ -63,7 +63,8 @@ def truth_events(answer_key: dict, merge_s: float = 0.1) -> list[dict]:
             continue
         if out and out[-1]["label"] == label and ev["t"] - out[-1]["t"] < merge_s:
             continue
-        item = {"t": ev["t"], "label": label}
+        # anomalies that only become visible later are timed from that moment
+        item = {"t": ev.get("visible_t", ev["t"]), "label": label}
         if "kind" in ev:
             item["kind"] = ev["kind"]
         out.append(item)
@@ -118,7 +119,8 @@ def score_clip(answer_key: dict, predicted: list[dict], tol_s: float = 0.3,
     anomaly = answer_key.get("anomaly")
     pred_anom = sorted(pred_by.get("anomaly", []))
     if anomaly:
-        t0 = anomaly["start_frame"] / answer_key["fps"]
+        t0 = next((e["t"] for e in truth if e["label"] == "anomaly"),
+                  anomaly["start_frame"] / answer_key["fps"])
         hits = [p for p in pred_anom if p >= t0 - tol_s]
         anomaly_result = {
             "present": True, "kind": anomaly["kind"], "t_true": round(t0, 3),

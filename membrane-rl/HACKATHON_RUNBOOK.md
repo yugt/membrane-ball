@@ -5,6 +5,19 @@ real footage has no answer key. We generate physics video *with* an exact,
 timestamped answer key, score a video agent against it live, and show where it
 beats — and loses to — a model-free baseline.
 
+**Architecture — two speeds:**
+
+```
+pixels ──► perception (1 ms) ──► physics twin (0.2 ms) ──► 1 s forecast (7 ms)
+  │           3D ball + rim           │  innovation ─► anomaly alarm (≤ 0.1 s)
+  │                                   └─ twin's own events ─► membrane / rim / wall
+  └──► Cosmos over 2 s windows (seconds) ──► what happened, and WHY, in words
+```
+
+A language model is far too slow (seconds per call) to say where the ball will
+be in 1 s, and poor at numeric dynamics. The fast path predicts and alarms; the
+slow path (Cosmos) explains and answers questions; the answer key scores both.
+
 ## What exists before the event (disclose this)
 
 Everything in `membrane-rl/` on branch `claude/laughing-noether-tpl7lw` of
@@ -17,12 +30,15 @@ Everything in `membrane-rl/` on branch `claude/laughing-noether-tpl7lw` of
 | Clip + answer-key generator | `membrane_rl/video.py`, `scripts/gen_clips.py` | done, ~4 s/clip at 720 px |
 | Scorer (P/R/F1, anomaly latency) | `membrane_rl/scoring.py`, `scripts/eval_events.py` | done |
 | Pixel-tracker baseline | `membrane_rl/tracker.py` | done |
+| Pixels → 3D ball + rim centre | `membrane_rl/perception.py` | done, ~1 ms/frame, error ≈ 1.4 % of ball radius |
+| Physics twin: forecast + anomaly alarm | `membrane_rl/twin.py`, `scripts/eval_forecast.py` | done, numbers below |
 | VLM agent client (W&B / NVIDIA / local / any OpenAI-compatible) | `membrane_rl/agent.py`, `scripts/run_agent.py` | done offline; **never called a real model** |
-| Tests | `tests/` | 40 passing |
+| Tests | `tests/` | 46 passing |
 
 **Build on the day** (new commits, dated Oct 2): real model integration and
-prompt tuning, a live/streaming UI, the scoreboard (W&B), search over events,
-the real-footage segment, the demo itself.
+prompt tuning, the live view (video + forecast path + twin alarms + Cosmos
+explanations), the scoreboard (W&B), search over events, the real-footage
+segment, the demo itself.
 
 ## Setup on the event VM (5 min)
 
@@ -31,31 +47,42 @@ git clone -b claude/laughing-noether-tpl7lw https://github.com/yugt/membrane-bal
 cd membrane-ball/membrane-rl
 python3 -m venv .venv && . .venv/bin/activate      # or: uv venv && uv pip install -r requirements.txt
 pip install -r requirements.txt
-python -m pytest -q tests/                         # expect 40 passed
+python -m pytest -q tests/                         # expect 46 passed
 python scripts/gen_clips.py --n 20 --out clips/ --annotated
 python scripts/eval_events.py --clips clips/ --detector oracle    # must be all 1.0
 python scripts/eval_events.py --clips clips/ --detector tracker   # baseline numbers below
+python scripts/eval_events.py --clips clips/ --detector twin      # fast path
+python scripts/eval_forecast.py --clips clips/                    # 1 s forecast accuracy
 ```
 
 If `pip` is missing on the VM: `python3 -m ensurepip` or use `uv`. If the VM has
 no internet to PyPI, everything except the agent needs only
 `numpy pillow imageio-ffmpeg`.
 
-## Baseline to beat (20 clips, 6 s each, tol 0.3 s)
+## Numbers to beat (30 held-out clips, seed 7, 6 s each, tol 0.3 s)
 
-| | tracker |
-|---|---|
-| "something happened here" (coarse F1) | **0.90** |
-| *what* was hit — membrane / ring / wall | **0.00** (it cannot tell) |
-| anomaly: teleport, hover | 100 % |
-| anomaly: gravity_flip | 50 % |
-| anomaly: energy_kick, membrane_off | **0 %** |
-| false alarms on normal clips | 0 % |
+Thresholds were set on a different 20-clip set; these clips were not used for tuning.
 
-The story writes itself: the tracker times events well but cannot *name* them
-and cannot see the membrane. The VLM's job is fine-grained labels plus the
-anomalies the tracker misses. Two anomalies (`teleport`, `membrane_off`) are
-also invisible to an energy check — only the picture gives them away.
+| | tracker (pixels only) | **physics twin** |
+|---|---|---|
+| names what was hit — F1 over membrane / rim / wall / anomaly | 0.04 | **0.93** |
+| "something happened here" (coarse F1) | **0.89** | 0.82 |
+| anomaly caught: teleport · hover | 100 % · 100 % | 100 % · 100 % |
+| anomaly caught: gravity_flip | 67 % | **100 %** (0.10 s) |
+| anomaly caught: energy_kick · membrane_off | **0 % · 0 %** | **100 % · 100 %** (≤ 0.02 s) |
+| false alarms on normal clips | 0 % | 0 % |
+| where is the ball in 1 s — median error | — | **0.12 ball radii** (gravity-only: 9.2) |
+| … with a membrane bounce inside that second | — | **0.13** (gravity-only: 11.4) |
+| cost per frame | ~3 ms | ~1.3 ms + 7 ms per forecast |
+
+Honest caveats for Q&A: the twin knows the physical constants (same
+simulator); everything about the episode — rim position, ball state — comes
+from pixels. `membrane_off` is timed from the first frame the ball is deeper
+than a live membrane ever allows (−0.3; live minimum over 200 episodes −0.18).
+
+Where Cosmos must add value: explaining *why* in words, answering questions,
+and anything outside the twin's model — e.g. **real footage**, where no twin
+exists. That is the natural end of the demo.
 
 ## Day schedule (08:30–18:30)
 
@@ -64,7 +91,7 @@ also invisible to an energy check — only the picture gives them away.
 | 08:30–09:30 | Setup above on the event VM; get API keys from organisers; confirm model names | tests pass, oracle = 1.0 |
 | 09:30–10:30 | **Model smoke test** (below): one window, one call, look at raw output | a parseable JSON reply |
 | 10:30–12:30 | `run_agent.py` on 5 clips → `eval_events.py --detector preds`; tune prompt/window/fps | a first real score table |
-| 12:30–14:30 | Live view: play clip, stream agent events next to ground truth; W&B logging | one clip plays with both timelines |
+| 12:30–14:30 | Live view: clip + twin forecast path + twin alarms + Cosmos text, ground truth beside it; W&B logging | one clip plays with all three |
 | 14:30–16:00 | Event search ("show every ring bounce"), real-footage clip | query returns timestamps |
 | 16:00–17:15 | Full eval on 20 clips, final table, record backup video of the demo | numbers frozen |
 | 17:15–18:30 | **No new code.** Rehearse 3× | |
@@ -123,6 +150,8 @@ Check, in this order, and write the answers down:
 | mp4 won't encode on fresh VM | no system ffmpeg | `imageio-ffmpeg` wheel bundles one |
 | Headless box, no display | — | nothing here needs a display |
 | Agent timestamps outside the window | hallucination | `parse_events` drops them |
+| Twin false alarms at rim hits | rim bounce is discontinuous; sub-pixel error flips it | detector threshold ×3 near the rim |
+| `membrane_off` "detected 1 s late" | injected long before the ball reaches the membrane | score from `visible_t` (first physically impossible frame) |
 | Same event reported by two overlapping windows | overlap by design | `merge_events` de-dups within 0.25 s |
 
 ## Questions judges will ask
@@ -132,4 +161,9 @@ Check, in this order, and write the answers down:
 - **"Why not a real physics engine / real video?"** — Real video has no exact
   labels; engines are black boxes. Here every event is logged at 0.8 ms
   resolution and anomalies are injected with known onset.
+- **"Why not just ask the VLM where the ball goes?"** — seconds of latency to
+  predict one second ahead, and numeric dynamics is its weak spot. The twin
+  does it in 7 ms at 0.12 ball radii; the VLM explains.
+- **"Doesn't the twin cheat by knowing the physics?"** — it knows the laws, not
+  the episode. That's also why real footage needs the VLM.
 - **"What did you build today?"** — Point at the Oct 2 commits.

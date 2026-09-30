@@ -6,6 +6,7 @@ scoring path and set the bar:
 
     python scripts/eval_events.py --clips clips/ --detector oracle    # must be perfect
     python scripts/eval_events.py --clips clips/ --detector tracker   # pixel baseline
+    python scripts/eval_events.py --clips clips/ --detector twin      # physics twin (fast path)
 
 A real agent writes one ``<clip>.pred.json`` per clip -- a list of
 ``{"t": seconds, "label": ...}`` -- and is scored with:
@@ -37,6 +38,11 @@ def detect(name: str, clip: Path, key: dict) -> list[dict]:
         track = track_ball(read_mp4(clip))
         size = int(key.get("size") or 720)
         return detect_events(track, key["fps"], size)
+    if name == "twin":
+        from membrane_rl.tracker import read_mp4
+        from membrane_rl.twin import params_from_key, run_twin
+        twin = run_twin(read_mp4(clip), params_from_key(key), int(key.get("size") or 720))
+        return twin.labelled_events()
     if name == "preds":
         pred = clip.with_suffix(".pred.json")
         return json.loads(pred.read_text()) if pred.exists() else []
@@ -46,7 +52,7 @@ def detect(name: str, clip: Path, key: dict) -> list[dict]:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--clips", default="clips")
-    ap.add_argument("--detector", default="tracker", choices=["oracle", "tracker", "preds"])
+    ap.add_argument("--detector", default="tracker", choices=["oracle", "tracker", "twin", "preds"])
     ap.add_argument("--tol", type=float, default=0.3, help="match window, seconds")
     ap.add_argument("--limit", type=int, default=0)
     args = ap.parse_args()

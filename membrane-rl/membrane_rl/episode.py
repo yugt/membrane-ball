@@ -89,4 +89,30 @@ def run_episode(
         sim.step()
         record()
     ep.events = list(sim.events)
+    _mark_visible_onset(ep)
     return ep, sim
+
+
+# Deepest a live membrane ever lets the ball's centre go is about -0.18
+# (measured over 40 random episodes); below this, inside the rim, the picture is
+# physically impossible.
+_IMPOSSIBLE_DEPTH = -0.3
+
+
+def _mark_visible_onset(ep: Episode) -> None:
+    """A switched-off membrane is invisible until the ball visibly falls through
+    it. Record that moment (``visible_t``): the first frame, at or after the
+    injection, where the ball's centre is inside the rim and deeper than a live
+    membrane ever allows. Detectors are timed from there -- the earliest anyone
+    could see the anomaly. (Before it, the ball may bounce off the rim instead,
+    which looks perfectly physical.)"""
+    if ep.anomaly is None or ep.anomaly.kind != "membrane_off":
+        return
+    fc = np.asarray(ep.frame_center)
+    for f in range(ep.anomaly.start_frame, ep.n_frames):
+        x, y, z = ep.states[f].pos
+        if z < _IMPOSSIBLE_DEPTH and np.hypot(x - fc[0], y - fc[1]) <= ep.params.r_frame:
+            for e in ep.events:
+                if e["type"] == "anomaly_start":
+                    e["visible_t"] = round(f * ep.params.dt, 5)
+            return
