@@ -376,11 +376,15 @@ class MembraneSim:
         """Advance ``n_frames`` and return the state after each one."""
         return [self.step() for _ in range(n_frames)]
 
-    def membrane_surface(self, grid: int = 25) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def membrane_surface(self, grid: int = 25, polar: bool = False
+                         ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Membrane height field on a ``grid x grid`` patch around the frame centre.
 
         Returns absolute x, y (world coordinates) and the height u. Points
         outside the clamped unit circle are NaN so the renderer can mask them.
+        ``polar=True`` samples a ``grid x 2*grid`` (radius x angle) disc instead,
+        whose outer ring lies exactly on the clamped rim (u = 0) -- a clean edge
+        for 3D surface plots.
         Uses the exact Moebius conformal mapping, which is what makes off-centre
         contact look right rather than merely plausible.
         """
@@ -391,10 +395,16 @@ class MembraneSim:
         r_b2 = bx * bx + by * by
         r_b = np.sqrt(r_b2)
 
-        lin = np.linspace(-1.0, 1.0, grid)
-        nx, ny = np.meshgrid(lin, lin, indexing="ij")   # frame-relative
+        if polar:
+            rho, th = np.meshgrid(np.linspace(0.0, 1.0, grid),
+                                  np.linspace(0.0, 2 * np.pi, 2 * grid), indexing="ij")
+            nx, ny = rho * np.cos(th), rho * np.sin(th)
+            outside = rho > 1.0
+        else:
+            lin = np.linspace(-1.0, 1.0, grid)
+            nx, ny = np.meshgrid(lin, lin, indexing="ij")   # frame-relative
+            outside = (nx**2 + ny**2) >= 1.0
         u = np.zeros_like(nx)
-        outside = (nx**2 + ny**2) >= 1.0
 
         wx, wy = nx + fx, ny + fy                        # world coordinates
 

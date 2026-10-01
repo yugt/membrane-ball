@@ -231,9 +231,13 @@ agent = [
 analysis = [
     { name = "plotly" },
 ]
+debug = [
+    { name = "membrane-rl", extra = ["debug"] },
+]
 
 [package.dev-dependencies]
 dev = [
+    { name = "plotly" },
     { name = "pytest" },
 ]
 
@@ -241,14 +245,18 @@ dev = [
 requires-dist = [
     { name = "membrane-rl", editable = "membrane-rl" },
     { name = "membrane-rl", extras = ["agent"], marker = "extra == 'agent'", editable = "membrane-rl" },
+    { name = "membrane-rl", extras = ["debug"], marker = "extra == 'debug'", editable = "membrane-rl" },
     { name = "numpy", specifier = ">=2.0" },
     { name = "plotly", marker = "extra == 'analysis'", specifier = ">=5.0" },
     { name = "pygame", specifier = ">=2.6" },
 ]
-provides-extras = ["analysis", "agent"]
+provides-extras = ["analysis", "agent", "debug"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=8" }]
+dev = [
+    { name = "plotly", specifier = ">=5" },
+    { name = "pytest", specifier = ">=8" },
+]
 
 [[package]]
 name = "membrane-rl"
@@ -264,12 +272,17 @@ dependencies = [
 agent = [
     { name = "openai" },
 ]
+debug = [
+    { name = "plotly" },
+]
 dev = [
+    { name = "plotly" },
     { name = "pytest" },
 ]
 
 [package.dev-dependencies]
 dev = [
+    { name = "plotly" },
     { name = "pytest" },
 ]
 
@@ -279,12 +292,17 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.26" },
     { name = "openai", marker = "extra == 'agent'", specifier = ">=1.30" },
     { name = "pillow", specifier = ">=10.1" },
+    { name = "plotly", marker = "extra == 'debug'", specifier = ">=5" },
+    { name = "plotly", marker = "extra == 'dev'", specifier = ">=5" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
 ]
-provides-extras = ["agent", "dev"]
+provides-extras = ["agent", "debug", "dev"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=8" }]
+dev = [
+    { name = "plotly", specifier = ">=5" },
+    { name = "pytest", specifier = ">=8" },
+]
 
 [[package]]
 name = "narwhals"
