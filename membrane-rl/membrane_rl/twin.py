@@ -50,6 +50,10 @@ class TwinConfig:
     # mismatch. Near the rim the detector threshold is multiplied by this.
     rim_margin: float = 0.3       # extra distance (world units) that counts as "at the rim"
     rim_threshold_mult: float = 3.0
+    # A mis-timed rim bounce leaves a velocity error that the filter takes a
+    # few frames to absorb, after the ball has already left the rim zone. Keep
+    # the relaxed threshold this long after the ball was last at the rim.
+    rim_hold_s: float = 0.3
     # Deeper than a live membrane ever lets the ball go (-0.18 over 200 random
     # episodes), inside the rim: the model no longer describes the scene.
     impossible_depth: float = -0.3
@@ -75,6 +79,7 @@ class PhysicsTwin:
         self.alarms: list[dict] = []
         self._run = 0
         self._last_alarm_t = -1e9
+        self._last_rim_t = -1e9
         self.invalid = False                   # model known not to describe the scene
 
     # ------------------------------------------------------------------
@@ -138,7 +143,10 @@ class PhysicsTwin:
             s = float(np.linalg.norm(self.bias))
             self.score.append(s)
 
-            thr = self.cfg.threshold * (self.cfg.rim_threshold_mult if self._near_rim(obs) else 1.0)
+            if self._near_rim(obs):
+                self._last_rim_t = t
+            near = t - self._last_rim_t <= self.cfg.rim_hold_s
+            thr = self.cfg.threshold * (self.cfg.rim_threshold_mult if near else 1.0)
             self._run = self._run + 1 if s > thr else 0
             if (self._run == self.cfg.min_run or rn > self.cfg.relock) and \
                     t - self._last_alarm_t > self.cfg.refractory_s:

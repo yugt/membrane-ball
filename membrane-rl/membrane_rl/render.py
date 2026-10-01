@@ -77,9 +77,14 @@ class Renderer:
         Needed because without depth sorting the ball always paints over the
         membrane, and the viewer cannot tell whether it is above, below or
         pressed into it -- which is exactly the information the task depends on.
+
+        ``project`` puts larger ``ry`` lower on screen and larger ``z`` higher,
+        i.e. the camera sits above the scene on the +ry side, looking along
+        -(0, sin t, cos t). Points higher up or nearer the bottom of the image
+        are therefore *closer*, hence the minus sign.
         """
         ry = x * self._sin_r + y * self._cos_r
-        return ry * self._sin_t + z * self._cos_t
+        return -(ry * self._sin_t + z * self._cos_t)
 
     def render(self, sim: MembraneSim) -> Image.Image:
         cfg = self.cfg

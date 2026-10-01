@@ -124,3 +124,21 @@ def test_parse_prediction(text, expected):
         assert got is None
     else:
         assert np.allclose(got, expected)
+
+
+def test_membrane_occludes_ball_only_when_pressed_in():
+    """Depth sort: a ball in the air must paint over the whole mesh; a ball
+    pressed into the membrane must be partly hidden by its near side."""
+    from membrane_rl.render import RenderConfig, Renderer
+
+    r = Renderer(RenderConfig.for_size(320))
+    sim = MembraneSim(Params(), seed=0)
+    sim.reset(frame_center=(0.0, 0.0))
+
+    sim.state.pos[:] = (0.0, 0.0, 2.0)
+    _, front = r._membrane_segments(sim)
+    assert front == []
+
+    sim.state.pos[:] = (0.0, 0.0, -0.05)
+    behind, front = r._membrane_segments(sim)
+    assert front and behind
