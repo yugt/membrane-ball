@@ -38,7 +38,7 @@ class Camera:
 
     def ground(self, sx: float, sy: float) -> tuple[float, float]:
         """Screen point known to lie at z = 0 -> world (x, y)."""
-        u = (sx - self.half) / self.cfg.scale
+        u = -(sx - self.half) / self.cfg.scale    # screen right is -rx
         w = (sy - self.half - self.cfg.y_offset) / self.cfg.scale / self.ct
         return u * self.cr + w * self.sr, -u * self.sr + w * self.cr
 
