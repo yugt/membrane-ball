@@ -137,6 +137,7 @@ python scripts/eval_events.py --clips clips/ --detector twin        # physics tw
 python scripts/eval_forecast.py --clips clips/                      # 1 s forecast accuracy
 python scripts/run_agent.py  --clips clips/ --limit 1 --dry-run     # VLM agent, no network
 python scripts/debug_plotly.py clips/clip_002.mp4                   # 3D frame-by-frame debug view (needs [debug])
+python scripts/debug_video.py  clips/clip_002.mp4                   # same, recorded as an mp4 with an orbiting camera
 ```
 
 **Before trusting a clip, open its debug file.** A clip is a 2D projection:
@@ -148,6 +149,13 @@ velocity and acceleration arrows, logged events, and a per-frame verdict:
 every change in the ball's motion must be explained by gravity, the membrane,
 a logged bounce, or the injected anomaly -- anything else is reported as
 UNEXPLAINED and the script exits non-zero. `--audit-only` runs just the check.
+
+`debug_video.py` plays that debug view in headless Chromium and records it as
+an mp4 next to the flat clip: the camera circles the cylinder once every 6 s of
+clip time, always aimed at its axis, starting from the clip camera's
+direction. It is the version to show people -- depth that the flat clip hides
+(a far-wall bounce, motion toward the camera) becomes visible as the camera
+moves. Needs `playwright install chromium` once (or `--chromium PATH`).
 
 ## Layout
 
@@ -175,6 +183,7 @@ scripts/
   eval_forecast.py   1 s forecast accuracy of the twin vs gravity-only
   overlay_twin.py    render forecast path, alarms and twin labels over a clip
   debug_plotly.py    3D frame-by-frame debug HTML + motion audit for a clip
+  debug_video.py     that debug view recorded as an mp4, orbiting camera, beside the clip
 tests/
   test_physics.py      energy, determinism, geometry, reward monotonicity
   test_video_agent.py  event log, anomalies, scoring, video I/O, agent parsing

@@ -36,6 +36,7 @@ merged into `main` in PR #1; developed on branch `claude/laughing-noether-tpl7lw
 | Offline overlay of the fast path (for humans) | `scripts/overlay_twin.py` | done; the live version is day-of work |
 | VLM agent client (W&B / NVIDIA / local / any OpenAI-compatible) | `membrane_rl/agent.py`, `scripts/run_agent.py` | done offline; **never called a real model** |
 | 3D debug view + per-frame motion audit | `membrane_rl/debug3d.py`, `scripts/debug_plotly.py` | done; every frame of 30 held-out clips explained |
+| Orbit-camera debug video beside the flat clip | `scripts/debug_video.py` | done; ~4 min per 6 s clip on CPU |
 | Tests | `tests/` | 59 passing |
 
 **Build on the day** (new commits, dated Oct 2): real model integration and
@@ -70,6 +71,7 @@ python scripts/eval_events.py --clips clips/ --detector twin      # fast path
 python scripts/eval_forecast.py --clips clips/                    # 1 s forecast accuracy
 python scripts/debug_plotly.py clips/clip_*.mp4 --audit-only     # every frame explained? (exit 1 if not)
 python scripts/debug_plotly.py clips/clip_002.mp4                 # 3D debug view of one clip
+python scripts/debug_video.py clips/clip_002.mp4                  # ...as an orbit-camera mp4 (after `playwright install chromium`)
 ```
 
 If `pip` is missing on the VM: `python3 -m ensurepip` or use `uv`. The

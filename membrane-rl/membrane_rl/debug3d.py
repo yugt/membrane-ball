@@ -209,8 +209,13 @@ _EVENT_STYLE = {"contact_start": ("#1e88e5", "circle"), "ring_bounce": ("#43a047
 
 
 def debug_figure(rec: Recording, stride: int = 1, trail: int = 40,
-                 vel_scale: float = 0.15, acc_scale: float = 0.02, title: str = ""):
-    """Animated figure: 3D scene (left) and per-frame traces (right)."""
+                 vel_scale: float = 0.15, acc_scale: float = 0.02, title: str = "",
+                 event_hold_s: float = 1.0):
+    """Animated figure: 3D scene (left) and per-frame traces (right).
+
+    An event marker appears in the frame its event happens and shrinks away
+    over ``event_hold_s``, so a bounce shows up exactly when it changes the
+    motion (all events at once are in the legend-only "all events" trace)."""
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
 
@@ -260,7 +265,21 @@ def debug_figure(rec: Recording, stride: int = 1, trail: int = 40,
             go.Scatter3d(x=[S[i, 0]], y=[S[i, 1]], z=[0.0], mode="markers",
                          marker=dict(size=5, color="#ff9800", symbol="circle-open"),
                          name="ground point (shadow)"),
-        ]
+        ] + [recent_events(i, et) for et in _EVENT_STYLE]
+
+    ev_t = {et: np.array([e["t"] for e in ep.events if e["type"] == et]) for et in _EVENT_STYLE}
+    ev_p = {et: np.array([e["pos"] for e in ep.events if e["type"] == et]).reshape(-1, 3)
+            for et in _EVENT_STYLE}
+
+    def recent_events(i, et):
+        age = T[i] - ev_t[et]
+        k = (age >= -0.5 * dt) & (age < event_hold_s)
+        P = ev_p[et][k]
+        col, sym = _EVENT_STYLE[et]
+        return go.Scatter3d(x=P[:, 0], y=P[:, 1], z=P[:, 2], mode="markers",
+                            marker=dict(size=list(4 + 8 * (1 - np.clip(age[k], 0, None) / event_hold_s)),
+                                        color=col, symbol=sym, line=dict(color="black", width=1)),
+                            name=et.replace("_", " "), hoverinfo="name")
 
     def cursors(i):
         t = T[i]
@@ -287,14 +306,14 @@ def debug_figure(rec: Recording, stride: int = 1, trail: int = 40,
     fig.add_trace(go.Scatter3d(x=S[:, 0], y=S[:, 1], z=S[:, 2], mode="lines",
                                line=dict(color="rgba(120,120,120,0.35)", width=2),
                                name="full path", visible="legendonly"), row=1, col=1)
-    for et, (col, sym) in _EVENT_STYLE.items():
-        es = [e for e in ep.events if e["type"] == et]
-        if not es:
-            continue
+    es = [e for e in ep.events if e["type"] in _EVENT_STYLE]
+    if es:
         P = np.array([e["pos"] for e in es])
         fig.add_trace(go.Scatter3d(
-            x=P[:, 0], y=P[:, 1], z=P[:, 2], mode="markers", marker=dict(size=4, color=col, symbol=sym),
-            name=et.replace("_", " "), text=[f"{et} t={e['t']:.3f}s frame {e['frame']}" for e in es],
+            x=P[:, 0], y=P[:, 1], z=P[:, 2], mode="markers",
+            marker=dict(size=3, color=[_EVENT_STYLE[e["type"]][0] for e in es]),
+            name="all events (whole clip)", visible="legendonly",
+            text=[f"{e['type']} t={e['t']:.3f}s frame {e['frame']}" for e in es],
             hoverinfo="text"), row=1, col=1)
 
     # ---- 2D panels ----
