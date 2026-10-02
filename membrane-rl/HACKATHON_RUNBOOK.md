@@ -9,7 +9,7 @@ beats — and loses to — a model-free baseline.
 
 ```
 pixels ──► perception (1 ms) ──► physics twin (0.2 ms) ──► 1 s forecast (7 ms)
-  │           3D ball + rim           │  innovation ─► anomaly alarm (≤ 0.1 s)
+  │           3D ball + rim           │  innovation ─► anomaly alarm (≤ 0.12 s)
   │                                   └─ twin's own events ─► membrane / rim / wall
   └──► Cosmos over 2 s windows (seconds) ──► what happened, and WHY, in words
 ```
@@ -35,7 +35,9 @@ merged into `main` in PR #1; developed on branch `claude/laughing-noether-tpl7lw
 | Physics twin: forecast + anomaly alarm | `membrane_rl/twin.py`, `scripts/eval_forecast.py` | done, numbers below |
 | Offline overlay of the fast path (for humans) | `scripts/overlay_twin.py` | done; the live version is day-of work |
 | VLM agent client (W&B / NVIDIA / local / any OpenAI-compatible) | `membrane_rl/agent.py`, `scripts/run_agent.py` | done offline; **never called a real model** |
-| Tests | `tests/` | 46 passing |
+| 3D debug view + per-frame motion audit | `membrane_rl/debug3d.py`, `scripts/debug_plotly.py` | done; every frame of 30 held-out clips explained |
+| Orbit-camera debug video beside the flat clip | `scripts/debug_video.py` | done; ~4 min per 6 s clip on CPU |
+| Tests | `tests/` | 59 passing |
 
 **Build on the day** (new commits, dated Oct 2): real model integration and
 prompt tuning, the live view (video + forecast path + twin alarms + Cosmos
@@ -49,7 +51,7 @@ In the fresh event repo, install the package (add `[agent]` for the VLM client):
 ```bash
 python3 -m venv .venv && . .venv/bin/activate      # or: uv venv (then `uv pip install ...`)
 pip install "git+https://github.com/yugt/membrane-ball#subdirectory=membrane-rl"
-pip install "membrane-rl[agent] @ git+https://github.com/yugt/membrane-ball#subdirectory=membrane-rl"   # with openai
+pip install "membrane-rl[agent,debug] @ git+https://github.com/yugt/membrane-ball#subdirectory=membrane-rl"   # + openai, plotly
 python -c "import membrane_rl"                     # sanity check
 ```
 
@@ -60,13 +62,16 @@ repo):
 ```bash
 git clone https://github.com/yugt/membrane-ball.git
 cd membrane-ball/membrane-rl
-pip install -e ".[dev,agent]"                      # or, inside the clone: `uv sync` and prefix commands with `uv run`
-python -m pytest -q tests/                         # expect 46 passed
+pip install -e ".[dev,agent,debug]"                # or, inside the clone: `uv sync` and prefix commands with `uv run`
+python -m pytest -q tests/                         # expect 59 passed
 python scripts/gen_clips.py --n 20 --out clips/ --annotated
 python scripts/eval_events.py --clips clips/ --detector oracle    # must be all 1.0
 python scripts/eval_events.py --clips clips/ --detector tracker   # baseline numbers below
 python scripts/eval_events.py --clips clips/ --detector twin      # fast path
 python scripts/eval_forecast.py --clips clips/                    # 1 s forecast accuracy
+python scripts/debug_plotly.py clips/clip_*.mp4 --audit-only     # every frame explained? (exit 1 if not)
+python scripts/debug_plotly.py clips/clip_002.mp4                 # 3D debug view of one clip
+python scripts/debug_video.py clips/clip_002.mp4                  # ...as an orbit-camera mp4 (after `playwright install chromium`)
 ```
 
 If `pip` is missing on the VM: `python3 -m ensurepip` or use `uv`. The
@@ -82,13 +87,13 @@ Thresholds were set on a different 20-clip set; these clips were not used for tu
 | | tracker (pixels only) | **physics twin** |
 |---|---|---|
 | names what was hit — F1 over membrane / rim / wall / anomaly | 0.04 | **0.97** |
-| "something happened here" (coarse F1) | **0.89** | 0.85 |
+| "something happened here" (coarse F1) | **0.88** | 0.85 |
 | anomaly caught: teleport · hover | 100 % · 100 % | 100 % · 100 % |
-| anomaly caught: gravity_flip | 67 % | **100 %** (0.10 s) |
+| anomaly caught: gravity_flip | 100 % (0.21 s) | **100 %** (0.11 s) |
 | anomaly caught: energy_kick · membrane_off | **0 % · 0 %** | **100 % · 100 %** (≤ 0.02 s) |
 | false alarms on normal clips | 0 % | 0 % |
 | where is the ball in 1 s — median error | — | **0.11 ball radii** (gravity-only: 9.2); 95 % within 1 radius |
-| … with a membrane bounce inside that second | — | **0.13** (gravity-only: 11.4) |
+| … with a membrane bounce inside that second | — | **0.12** (gravity-only: 11.3) |
 | cost per frame | ~4 ms | ~1.3 ms + 7 ms per forecast |
 
 Honest caveats for Q&A: the twin knows the physical constants (same
@@ -166,7 +171,10 @@ Check, in this order, and write the answers down:
 | mp4 won't encode on fresh VM | no system ffmpeg | `imageio-ffmpeg` wheel bundles one |
 | Headless box, no display | — | nothing here needs a display |
 | Agent timestamps outside the window | hallucination | `parse_events` drops them |
-| Twin false alarms at rim hits | rim bounce is discontinuous; sub-pixel error flips it | detector threshold ×3 near the rim |
+| Twin false alarms at rim hits | rim bounce is discontinuous; sub-pixel error flips it | detector threshold ×3 near the rim, held 0.3 s after leaving it |
+| Ball airborne above the membrane looks pressed into it | renderer depth sort had its sign flipped (fixed Oct 1) | regenerate any clips rendered before the fix |
+| Video left-right mirrored vs a real camera; 3D view never matched it | projection used +rx for screen right (fixed Oct 1) | same; `debug_plotly.py`'s "video camera" now reproduces the mp4 view |
+| A normal clip looks anomalous (ball "falls faster", jumps in mid-air) | projection: motion toward the camera looks like falling; far-wall bounces look causeless | open the clip's debug file: the 3D view and the per-frame causes show what happened |
 | `membrane_off` "detected 1 s late" | injected long before the ball reaches the membrane | score from `visible_t` (first physically impossible frame) |
 | Twin reports imaginary membrane hits after ball falls through | re-locks far below a membrane its model still has | ball below −0.3 inside the rim ⇒ one alarm, stop simulating |
 | Same event reported by two overlapping windows | overlap by design | `merge_events` de-dups within 0.25 s |

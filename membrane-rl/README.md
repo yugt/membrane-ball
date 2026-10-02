@@ -125,7 +125,7 @@ pip install "membrane-rl[agent] @ git+https://github.com/yugt/membrane-ball#subd
 
 # inside a clone of this repo
 uv sync                                  # then: uv run python membrane-rl/scripts/<script>.py ...
-pip install -e "membrane-rl[dev,agent]"  # or, without uv
+pip install -e "membrane-rl[dev,agent,debug]"  # or, without uv
 ```
 
 Then, from `membrane-rl/` (prefix with `uv run` if using uv):
@@ -136,7 +136,26 @@ python scripts/eval_events.py --clips clips/ --detector tracker     # model-free
 python scripts/eval_events.py --clips clips/ --detector twin        # physics twin (fast path)
 python scripts/eval_forecast.py --clips clips/                      # 1 s forecast accuracy
 python scripts/run_agent.py  --clips clips/ --limit 1 --dry-run     # VLM agent, no network
+python scripts/debug_plotly.py clips/clip_002.mp4                   # 3D frame-by-frame debug view (needs [debug])
+python scripts/debug_video.py  clips/clip_002.mp4                   # same, recorded as an mp4 with an orbiting camera
 ```
+
+**Before trusting a clip, open its debug file.** A clip is a 2D projection:
+motion toward the camera looks like falling, and a bounce off the far wall
+looks like a jump in mid-air. `debug_plotly.py` re-simulates the clip's
+episode, checks it reproduces the answer key, and writes a rotatable 3D
+animation (the "video camera" button restores the mp4's exact view) with
+velocity and acceleration arrows, logged events, and a per-frame verdict:
+every change in the ball's motion must be explained by gravity, the membrane,
+a logged bounce, or the injected anomaly -- anything else is reported as
+UNEXPLAINED and the script exits non-zero. `--audit-only` runs just the check.
+
+`debug_video.py` plays that debug view in headless Chromium and records it as
+an mp4 next to the flat clip: the camera circles the cylinder once every 6 s of
+clip time, always aimed at its axis, starting from the clip camera's
+direction. It is the version to show people -- depth that the flat clip hides
+(a far-wall bounce, motion toward the camera) becomes visible as the camera
+moves. Needs `playwright install chromium` once (or `--chromium PATH`).
 
 ## Layout
 
@@ -154,6 +173,7 @@ membrane_rl/
   agent.py       VLM event agent over any OpenAI-compatible endpoint
   perception.py  pixels -> 3D ball position and rim centre
   twin.py        physics twin: 1 s forecast + anomaly alarm from innovation
+  debug3d.py     per-frame motion audit + 3D Plotly debug view of an episode
 scripts/
   gen_dataset.py     train/test splits with disjoint frame-offset bands
   baseline_probe.py  zero-shot probe; oracle / naive / openai / hf backends
@@ -162,19 +182,22 @@ scripts/
   run_agent.py       run the VLM agent, write <clip>.pred.json
   eval_forecast.py   1 s forecast accuracy of the twin vs gravity-only
   overlay_twin.py    render forecast path, alarms and twin labels over a clip
+  debug_plotly.py    3D frame-by-frame debug HTML + motion audit for a clip
+  debug_video.py     that debug view recorded as an mp4, orbiting camera, beside the clip
 tests/
   test_physics.py      energy, determinism, geometry, reward monotonicity
   test_video_agent.py  event log, anomalies, scoring, video I/O, agent parsing
   test_twin.py         camera inversion, perception accuracy, twin forecast + alarms
+  test_debug3d.py      motion audit (nothing unexplained), debug camera == video camera
 ```
 
 ## Quick start
 
-Install as above (inside the repo: `uv sync`, or `pip install -e "membrane-rl[dev,agent]"`),
+Install as above (inside the repo: `uv sync`, or `pip install -e "membrane-rl[dev,agent,debug]"`),
 then from `membrane-rl/`:
 
 ```bash
-python3 -m pytest -q tests/                       # 46 tests, ~10 s; or ./scripts/verify.sh from the repo root
+python3 -m pytest -q tests/                       # 59 tests, ~12 s; or ./scripts/verify.sh from the repo root
 python3 scripts/gen_dataset.py --train 2000 --test 300 --horizon 25
 python3 scripts/baseline_probe.py --backend oracle --split test   # upper bound
 python3 scripts/baseline_probe.py --backend naive  --split test --horizon 25

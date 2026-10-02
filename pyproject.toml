@@ -17,10 +17,14 @@ analysis = [
 agent = [
     "membrane-rl[agent]",
 ]
+debug = [
+    "membrane-rl[debug]",
+]
 
 [dependency-groups]
 dev = [
     "pytest>=8",
+    "plotly>=5",   # membrane-rl debug view tests
 ]
 
 [tool.uv]

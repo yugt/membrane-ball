@@ -63,10 +63,16 @@ class Renderer:
         self._w2 = max(2, round(2 * k))
 
     def project(self, x, y, z):
-        """Isometric projection matching the upstream game camera."""
+        """Orthographic view from above, like the upstream game camera.
+
+        The camera sits above the scene on the +ry side looking along
+        -(0, sin t, cos t), so screen right is -rx (a real, unmirrored view:
+        the same picture a 3D viewer shows from that direction, see
+        ``debug3d.video_camera``), nearer points sit lower and higher ones
+        higher on screen."""
         rx = x * self._cos_r - y * self._sin_r
         ry = x * self._sin_r + y * self._cos_r
-        px = rx * self.cfg.scale
+        px = -rx * self.cfg.scale
         py = (ry * self._cos_t - z * self._sin_t) * self.cfg.scale
         half = self.cfg.size / 2.0
         return half + px, half + py + self.cfg.y_offset
@@ -77,9 +83,13 @@ class Renderer:
         Needed because without depth sorting the ball always paints over the
         membrane, and the viewer cannot tell whether it is above, below or
         pressed into it -- which is exactly the information the task depends on.
+
+        The camera looks along -(0, sin t, cos t) (see ``project``): points
+        higher up or nearer the bottom of the image are *closer*, hence the
+        minus sign.
         """
         ry = x * self._sin_r + y * self._cos_r
-        return ry * self._sin_t + z * self._cos_t
+        return -(ry * self._sin_t + z * self._cos_t)
 
     def render(self, sim: MembraneSim) -> Image.Image:
         cfg = self.cfg
