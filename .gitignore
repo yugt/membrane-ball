@@ -12,6 +12,7 @@ artifacts/
 bounce_metrics.html
 membrane-ball.html
 membrane-ball-wrong.html
+*_debug.html          # scripts/debug_plotly.py output
 
 # Generated video clips and VLM predictions
 clips/
